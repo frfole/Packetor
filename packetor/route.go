@@ -3,7 +3,10 @@ package packetor
 import (
 	"Packetor/packetor/decode"
 	"Packetor/packetor/decode/cs_handshake"
+	"Packetor/packetor/decode/cs_login"
+	"Packetor/packetor/decode/cs_status"
 	"Packetor/packetor/decode/sc_login"
+	"Packetor/packetor/decode/sc_status"
 	error2 "Packetor/packetor/error"
 	"errors"
 	"fmt"
@@ -28,23 +31,36 @@ func (r *Route) Start() {
 	r.cReg = decode.PacketRegistry{
 		Packets: map[byte]map[int32]decode.PacketEntry{
 			0: {
-				0: decode.PacketEntry{Decode: cs_handshake.Handshake{}.Read, Handle: r.handleHandshakeC},
+				0x00: decode.PacketEntry{Decode: cs_handshake.Handshake{}.Read, Handle: r.handleHandshakeC},
 			},
-			1: {},
-			2: {},
+			1: {
+				0x00: decode.PacketEntry{Decode: cs_status.StatusRequest{}.Read},
+				0x01: decode.PacketEntry{Decode: cs_status.PingRequest{}.Read},
+			},
+			2: {
+				0x00: decode.PacketEntry{Decode: cs_login.LoginStart{}.Read},
+				0x01: decode.PacketEntry{Decode: cs_login.EncryptionResponse{}.Read},
+				0x02: decode.PacketEntry{Decode: cs_login.LoginPluginResponse{}.Read},
+			},
 			3: {},
 		},
 	}
 	r.sReg = decode.PacketRegistry{
 		Packets: map[byte]map[int32]decode.PacketEntry{
 			0: {},
-			1: {},
+			1: {
+				0x00: decode.PacketEntry{Decode: sc_status.StatusResponse{}.Read},
+				0x01: decode.PacketEntry{Decode: sc_status.PingResponse{}.Read},
+			},
 			2: {
+				0x00: decode.PacketEntry{Decode: sc_login.Disconnect{}.Read},
+				0x01: decode.PacketEntry{Decode: sc_login.EncryptionRequest{}.Read},
 				0x02: decode.PacketEntry{Decode: sc_login.LoginSuccess{}.Read},
 				0x03: decode.PacketEntry{Decode: sc_login.SetCompression(0).Read, Handle: func(packet decode.Packet) (err error) {
 					r.compress = packet.(sc_login.SetCompression).Compression()
 					return nil
 				}},
+				0x04: decode.PacketEntry{Decode: sc_login.LoginPluginRequest{}.Read},
 			},
 			3: {},
 		},

@@ -122,6 +122,18 @@ func (r *PacketReader) ReadVarInt() (value int32, err error) {
 	return value, nil
 }
 
+func (r *PacketReader) ReadBoolean() (value bool, err error) {
+	data := make([]byte, 1)
+	n, err := r.rd.Read(data)
+	if err != nil {
+		return false, errors.Join(error2.ErrDecodeReadFail, err)
+	} else if n != 1 {
+		return false, errors.Join(fmt.Errorf("boolean length mismatch (excepted %d was %d)", 1, n), error2.ErrDecodeLength)
+	} else {
+		return data[0] == 1, nil
+	}
+}
+
 func (r *PacketReader) ReadUShort() (value uint16, err error) {
 	data := make([]byte, 2)
 	n, err := r.rd.Read(data)
@@ -131,6 +143,19 @@ func (r *PacketReader) ReadUShort() (value uint16, err error) {
 		return 0, errors.Join(fmt.Errorf("ushort length mismatch (excepted %d was %d)", 2, n), error2.ErrDecodeLength)
 	} else {
 		return (uint16(data[0]) << 8) | uint16(data[1]), nil
+	}
+}
+
+func (r *PacketReader) ReadLong() (value int64, err error) {
+	b := make([]byte, 8)
+	n, err := r.rd.Read(b)
+	if err != nil {
+		return 0, errors.Join(error2.ErrDecodeReadFail, err)
+	} else if n != 8 {
+		return 0, errors.Join(fmt.Errorf("long length mismatch (excepted %d was %d", 8, n), error2.ErrDecodeLength)
+	} else {
+		return int64(b[7]) | int64(b[6])<<8 | int64(b[5])<<16 | int64(b[4])<<24 |
+			int64(b[3])<<32 | int64(b[2])<<40 | int64(b[1])<<48 | int64(b[0])<<56, nil
 	}
 }
 
@@ -157,18 +182,48 @@ func (r *PacketReader) ReadString(maxLength int) (value string, err error) {
 	return str, nil
 }
 
+func (r *PacketReader) ReadChat() (value string, err error) {
+	return r.ReadString(262144)
+}
+
+func (r *PacketReader) ReadIdentifier() (value string, err error) {
+	return r.ReadString(32767)
+}
+
 func (r *PacketReader) ReadUuid() (value uuid.UUID, err error) {
 	data := make([]byte, 16)
 	n, err := r.rd.Read(data)
 	if err != nil {
 		return uuid.Nil, errors.Join(error2.ErrDecodeReadFail, err)
 	} else if n != 16 {
-		return uuid.Nil, errors.Join(fmt.Errorf("uuid length mismatch"), error2.ErrDecodeLength)
+		return uuid.Nil, errors.Join(fmt.Errorf("uuid length mismatch (excepted %d was %d)", 16, n), error2.ErrDecodeLength)
 	}
 	value, err = uuid.FromBytes(data)
 	if err != nil {
 		return uuid.Nil, errors.Join(fmt.Errorf("uuid parse"), err)
 	} else {
 		return value, nil
+	}
+}
+
+func (r *PacketReader) ReadBytesExact(length int) (value []byte, err error) {
+	data := make([]byte, length)
+	n, err := r.rd.Read(data)
+	if err != nil {
+		return nil, errors.Join(error2.ErrDecodeReadFail, err)
+	} else if n != length {
+		return nil, errors.Join(fmt.Errorf("byte array length mismatch (excepted %d was %d)", length, n), error2.ErrDecodeLength)
+	} else {
+		return data, nil
+	}
+}
+
+func (r *PacketReader) ReadBytes(maxLen int) (value []byte, err error) {
+	data := make([]byte, maxLen)
+	n, err := r.rd.Read(data)
+	if err != nil {
+		return nil, errors.Join(error2.ErrDecodeReadFail, err)
+	} else {
+		return data[:n], nil
 	}
 }
