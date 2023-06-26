@@ -6,6 +6,7 @@ import (
 	"Packetor/packetor/decode/cs_login"
 	"Packetor/packetor/decode/cs_status"
 	"Packetor/packetor/decode/sc_login"
+	"Packetor/packetor/decode/sc_play"
 	"Packetor/packetor/decode/sc_status"
 	error2 "Packetor/packetor/error"
 	"errors"
@@ -55,14 +56,27 @@ func (r *Route) Start() {
 			2: {
 				0x00: decode.PacketEntry{Decode: sc_login.Disconnect{}.Read},
 				0x01: decode.PacketEntry{Decode: sc_login.EncryptionRequest{}.Read},
-				0x02: decode.PacketEntry{Decode: sc_login.LoginSuccess{}.Read},
+				0x02: decode.PacketEntry{Decode: sc_login.LoginSuccess{}.Read, Handle: func(packet decode.Packet) (err error) {
+					r.state = 3
+					return nil
+				}},
 				0x03: decode.PacketEntry{Decode: sc_login.SetCompression(0).Read, Handle: func(packet decode.Packet) (err error) {
 					r.compress = packet.(sc_login.SetCompression).Compression()
 					return nil
 				}},
 				0x04: decode.PacketEntry{Decode: sc_login.LoginPluginRequest{}.Read},
 			},
-			3: {},
+			3: {
+				0x00: decode.PacketEntry{Decode: sc_play.BundleDelimiter{}.Read},
+				0x01: decode.PacketEntry{Decode: sc_play.SpawnEntity{}.Read},
+				0x02: decode.PacketEntry{Decode: sc_play.SpawnExperienceOrb{}.Read},
+				0x03: decode.PacketEntry{Decode: sc_play.SpawnPlayer{}.Read},
+				0x04: decode.PacketEntry{Decode: sc_play.EntityAnimation{}.Read},
+				0x05: decode.PacketEntry{Decode: sc_play.AwardStatistics{}.Read},
+				0x06: decode.PacketEntry{Decode: sc_play.AcknowledgeBlockChange{}.Read},
+				0x07: decode.PacketEntry{Decode: sc_play.SetBlockDestroyStage{}.Read},
+				0x08: decode.PacketEntry{Decode: sc_play.BlockEntityData{}.Read},
+			},
 		},
 	}
 	go r.handleFBTraffic()
@@ -90,6 +104,9 @@ func (r *Route) handleFBTraffic() {
 			return
 		}
 		if err = r.cReg.HandleNewPacket(r.state, reader); err != nil {
+			if errors.Is(err, error2.ErrSoft) && errors.Is(err, error2.ErrUnknownPacket) {
+				continue
+			}
 			if errors.Is(err, error2.ErrSoft) {
 				fmt.Printf("client->server handle: %v\n", err)
 			} else {
@@ -121,6 +138,9 @@ func (r *Route) handleBFTraffic() {
 			return
 		}
 		if err = r.sReg.HandleNewPacket(r.state, reader); err != nil {
+			if errors.Is(err, error2.ErrSoft) && errors.Is(err, error2.ErrUnknownPacket) {
+				continue
+			}
 			if errors.Is(err, error2.ErrSoft) {
 				fmt.Printf("server->client handle: %v\n", err)
 			} else {

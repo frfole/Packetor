@@ -2,12 +2,14 @@ package decode
 
 import (
 	error2 "Packetor/packetor/error"
+	"Packetor/packetor/nbt"
 	"bytes"
 	"compress/zlib"
 	"errors"
 	"fmt"
 	"github.com/gofrs/uuid/v5"
 	"io"
+	"math"
 	"net"
 	"unicode/utf8"
 )
@@ -134,6 +136,30 @@ func (r *PacketReader) ReadBoolean() (value bool, err error) {
 	}
 }
 
+func (r *PacketReader) ReadUByte() (value uint8, err error) {
+	data := make([]byte, 1)
+	n, err := r.rd.Read(data)
+	if err != nil {
+		return 0, errors.Join(error2.ErrDecodeReadFail, err)
+	} else if n != 1 {
+		return 0, errors.Join(fmt.Errorf("ubyte length mismatch (excepted %d was %d)", 1, n), error2.ErrDecodeLength)
+	} else {
+		return data[0], nil
+	}
+}
+
+func (r *PacketReader) ReadShort() (value int16, err error) {
+	data := make([]byte, 2)
+	n, err := r.rd.Read(data)
+	if err != nil {
+		return 0, errors.Join(error2.ErrDecodeReadFail, err)
+	} else if n != 2 {
+		return 0, errors.Join(fmt.Errorf("short length mismatch (excepted %d was %d)", 2, n), error2.ErrDecodeLength)
+	} else {
+		return (int16(data[0]) << 8) | int16(data[1]), nil
+	}
+}
+
 func (r *PacketReader) ReadUShort() (value uint16, err error) {
 	data := make([]byte, 2)
 	n, err := r.rd.Read(data)
@@ -156,6 +182,32 @@ func (r *PacketReader) ReadLong() (value int64, err error) {
 	} else {
 		return int64(b[7]) | int64(b[6])<<8 | int64(b[5])<<16 | int64(b[4])<<24 |
 			int64(b[3])<<32 | int64(b[2])<<40 | int64(b[1])<<48 | int64(b[0])<<56, nil
+	}
+}
+
+func (r *PacketReader) ReadFloat() (value float32, err error) {
+	b := make([]byte, 4)
+	n, err := r.rd.Read(b)
+	if err != nil {
+		return 0, errors.Join(error2.ErrDecodeReadFail, err)
+	} else if n != 4 {
+		return 0, errors.Join(fmt.Errorf("encoded float length mismatch (excepted %d was %d", 4, n), error2.ErrDecodeLength)
+	} else {
+		return math.Float32frombits(uint32(b[0])<<24 | uint32(b[1])<<16 | uint32(b[2])<<8 | uint32(b[0])), nil
+	}
+}
+
+func (r *PacketReader) ReadDouble() (value float64, err error) {
+	b := make([]byte, 8)
+	n, err := r.rd.Read(b)
+	if err != nil {
+		return 0, errors.Join(error2.ErrDecodeReadFail, err)
+	} else if n != 8 {
+		return 0, errors.Join(fmt.Errorf("encoded float length mismatch (excepted %d was %d", 4, n), error2.ErrDecodeLength)
+	} else {
+		return math.Float64frombits(
+			uint64(b[0])<<56 | uint64(b[1])<<48 | uint64(b[2])<<40 | uint64(b[3])<<32 | uint64(b[4])<<24 | uint64(b[5])<<16 | uint64(b[6])<<8 | uint64(b[7]),
+		), nil
 	}
 }
 
@@ -188,6 +240,35 @@ func (r *PacketReader) ReadChat() (value string, err error) {
 
 func (r *PacketReader) ReadIdentifier() (value string, err error) {
 	return r.ReadString(32767)
+}
+
+func (r *PacketReader) ReadNbt() (value nbt.Compound, err error) {
+	compound, err := nbt.ReadNbt(r.rd)
+	if err != nil {
+		return nil, fmt.Errorf("NBT decode failed: %w", err)
+	} else {
+		return compound, nil
+	}
+}
+
+func (r *PacketReader) ReadPosition() (value Position, err error) {
+	long, err := r.ReadLong()
+	if err != nil {
+		return 0, errors.Join(fmt.Errorf("decode position"), err)
+	}
+	return Position(long), nil
+}
+
+func (r *PacketReader) ReadAngle() (value Angle, err error) {
+	data := make([]byte, 1)
+	n, err := r.rd.Read(data)
+	if err != nil {
+		return 0, errors.Join(error2.ErrDecodeReadFail, err)
+	} else if n != 1 {
+		return 0, errors.Join(fmt.Errorf("angle length mismatch (excepted %d was %d)", 1, n), error2.ErrDecodeLength)
+	} else {
+		return Angle(data[0]), nil
+	}
 }
 
 func (r *PacketReader) ReadUuid() (value uuid.UUID, err error) {

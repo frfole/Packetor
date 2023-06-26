@@ -20,7 +20,6 @@ func (r PacketRegistry) HandleNewPacket(state byte, reader PacketReader) (err er
 	if err != nil {
 		return err
 	}
-	println("packet", packetId)
 	packets, ok := r.Packets[state]
 	if !ok {
 		return errors.Join(fmt.Errorf("unknown net state %d", state), error2.ErrSoft, error2.ErrUnknownNetState)
