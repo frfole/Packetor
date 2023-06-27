@@ -5,7 +5,7 @@ import "Packetor/packetor/decode"
 type StatusRequest struct {
 }
 
-func (p StatusRequest) Read(reader decode.PacketReader) (packet decode.Packet, err error) {
+func (p StatusRequest) Read(_ decode.PacketReader) (packet decode.Packet, err error) {
 	return StatusRequest{}, nil
 }
 

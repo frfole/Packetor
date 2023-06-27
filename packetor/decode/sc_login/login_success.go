@@ -24,7 +24,7 @@ func (p LoginSuccess) Read(reader decode.PacketReader) (packet decode.Packet, er
 	if err != nil {
 		return nil, err
 	}
-	username, err := reader.ReadString(16)
+	username, err := reader.ReadString0(16)
 	if err != nil {
 		return nil, err
 	}

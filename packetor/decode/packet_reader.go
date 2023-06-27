@@ -102,6 +102,30 @@ func (r *PacketReader) readVarIntC() (value int32, raw []byte, err error) {
 	return value, raw, nil
 }
 
+func (r *PacketReader) ReadVarIntRaw() (value int32, raw []byte, err error) {
+	value = 0
+	raw = []byte{}
+	pos := 0
+	curByte := make([]byte, 1)
+
+	for {
+		n, err := r.rd.Read(curByte)
+		if n != 1 {
+			return value, raw, errors.Join(error2.ErrDecodeReadFail, err)
+		}
+		raw = append(raw, curByte[0])
+		value |= int32(curByte[0]&0x7f) << pos
+		if (curByte[0] & 0x80) == 0 {
+			break
+		}
+		pos += 7
+		if pos >= 32 {
+			return value, raw, fmt.Errorf("VarInt %w", error2.ErrDecodeTooBig)
+		}
+	}
+	return value, raw, nil
+}
+
 func (r *PacketReader) ReadVarInt() (value int32, err error) {
 	value = 0
 	pos := 0
@@ -133,6 +157,18 @@ func (r *PacketReader) ReadBoolean() (value bool, err error) {
 		return false, errors.Join(fmt.Errorf("boolean length mismatch (excepted %d was %d)", 1, n), error2.ErrDecodeLength)
 	} else {
 		return data[0] == 1, nil
+	}
+}
+
+func (r *PacketReader) ReadSByte() (value int8, err error) {
+	data := make([]byte, 1)
+	n, err := r.rd.Read(data)
+	if err != nil {
+		return 0, errors.Join(error2.ErrDecodeReadFail, err)
+	} else if n != 1 {
+		return 0, errors.Join(fmt.Errorf("byte length mismatch (excepted %d was %d)", 1, n), error2.ErrDecodeLength)
+	} else {
+		return int8(data[0]), nil
 	}
 }
 
@@ -169,6 +205,18 @@ func (r *PacketReader) ReadUShort() (value uint16, err error) {
 		return 0, errors.Join(fmt.Errorf("ushort length mismatch (excepted %d was %d)", 2, n), error2.ErrDecodeLength)
 	} else {
 		return (uint16(data[0]) << 8) | uint16(data[1]), nil
+	}
+}
+
+func (r *PacketReader) ReadInt() (value int32, err error) {
+	b := make([]byte, 4)
+	n, err := r.rd.Read(b)
+	if err != nil {
+		return 0, errors.Join(error2.ErrDecodeReadFail, err)
+	} else if n != 4 {
+		return 0, errors.Join(fmt.Errorf("int length mismatch (excepted %d was %d", 4, n), error2.ErrDecodeLength)
+	} else {
+		return int32(b[0])<<24 | int32(b[1])<<16 | int32(b[2])<<8 | int32(b[3]), nil
 	}
 }
 
@@ -211,7 +259,7 @@ func (r *PacketReader) ReadDouble() (value float64, err error) {
 	}
 }
 
-func (r *PacketReader) ReadString(maxLength int) (value string, err error) {
+func (r *PacketReader) ReadString0(maxLength int) (value string, err error) {
 	length, err := r.ReadVarInt()
 	if err != nil {
 		return "", errors.Join(error2.ErrDecodeReadFail, err)
@@ -234,12 +282,40 @@ func (r *PacketReader) ReadString(maxLength int) (value string, err error) {
 	return str, nil
 }
 
+func (r *PacketReader) ReadString() (value string, err error) {
+	return r.ReadString0(32767)
+}
+
 func (r *PacketReader) ReadChat() (value string, err error) {
-	return r.ReadString(262144)
+	return r.ReadString0(262144)
 }
 
 func (r *PacketReader) ReadIdentifier() (value string, err error) {
-	return r.ReadString(32767)
+	return r.ReadString0(32767)
+}
+
+func (r *PacketReader) ReadSlot() (value Slot, err error) {
+	value = Slot{}
+	value.Present, err = r.ReadBoolean()
+	if err != nil {
+		return value, fmt.Errorf("slot (present) decode failed: %w", err)
+	} else if !value.Present {
+		return value, nil
+	} else {
+		value.ItemID, err = r.ReadVarInt()
+		if err != nil {
+			return value, fmt.Errorf("slot (item id) decode failed: %w", err)
+		}
+		value.ItemCount, err = r.ReadUByte()
+		if err != nil {
+			return value, fmt.Errorf("slot (item count) decode failed: %w", err)
+		}
+		value.ItemNbt, err = r.ReadNbt()
+		if err != nil {
+			return value, fmt.Errorf("slot (itme nbt) decode failed: %w", err)
+		}
+		return value, nil
+	}
 }
 
 func (r *PacketReader) ReadNbt() (value nbt.Compound, err error) {

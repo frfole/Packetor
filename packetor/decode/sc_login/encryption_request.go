@@ -11,7 +11,7 @@ type EncryptionRequest struct {
 }
 
 func (p EncryptionRequest) Read(reader decode.PacketReader) (packet decode.Packet, err error) {
-	sid, err := reader.ReadString(20)
+	sid, err := reader.ReadString0(20)
 	if err != nil {
 		return nil, err
 	}

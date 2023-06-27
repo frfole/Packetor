@@ -7,7 +7,7 @@ type StatusResponse struct {
 }
 
 func (p StatusResponse) Read(reader decode.PacketReader) (packet decode.Packet, err error) {
-	jsonRes, err := reader.ReadString(32767)
+	jsonRes, err := reader.ReadString0(32767)
 	if err != nil {
 		return nil, err
 	}

@@ -1,6 +1,17 @@
 package decode
 
-type Angle byte
+import "Packetor/packetor/nbt"
+
+type (
+	Angle    byte
+	Position int64
+	Slot     struct {
+		Present   bool
+		ItemID    int32
+		ItemCount uint8
+		ItemNbt   nbt.Compound
+	}
+)
 
 func (a Angle) asFloat32() float32 {
 	return float32(a) * (360.0 / 256.0)
@@ -9,8 +20,6 @@ func (a Angle) asFloat32() float32 {
 func (a Angle) asFloat64() float64 {
 	return float64(a) * (360.0 / 256.0)
 }
-
-type Position int64
 
 func (p Position) X() int32 {
 	return int32(p >> 38)

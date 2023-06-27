@@ -13,7 +13,7 @@ type LoginStart struct {
 }
 
 func (p LoginStart) Read(reader decode.PacketReader) (packet decode.Packet, err error) {
-	username, err := reader.ReadString(16)
+	username, err := reader.ReadString0(16)
 	if err != nil {
 		return nil, err
 	}

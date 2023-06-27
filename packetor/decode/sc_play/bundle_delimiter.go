@@ -5,7 +5,7 @@ import "Packetor/packetor/decode"
 type BundleDelimiter struct {
 }
 
-func (p BundleDelimiter) Read(reader decode.PacketReader) (packet decode.Packet, err error) {
+func (p BundleDelimiter) Read(_ decode.PacketReader) (packet decode.Packet, err error) {
 	return BundleDelimiter{}, nil
 }
 

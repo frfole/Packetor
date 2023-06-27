@@ -17,7 +17,7 @@ func (h Handshake) Read(reader decode.PacketReader) (packet decode.Packet, err e
 	if err != nil {
 		return nil, err
 	}
-	srvAddr, err := reader.ReadString(255)
+	srvAddr, err := reader.ReadString0(255)
 	if err != nil {
 		return nil, err
 	}
