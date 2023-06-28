@@ -11,6 +11,7 @@ type (
 		ItemCount uint8
 		ItemNbt   nbt.Compound
 	}
+	BitSet []uint64
 )
 
 func (a Angle) asFloat32() float32 {
@@ -31,4 +32,11 @@ func (p Position) Y() int32 {
 
 func (p Position) Z() int32 {
 	return int32(p << 26 >> 38)
+}
+
+func (b BitSet) IsSet(index int) bool {
+	if index>>6 >= len(b) {
+		return false
+	}
+	return (b[index>>6] >> (index & 63)) == 1
 }

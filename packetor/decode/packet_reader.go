@@ -148,6 +148,28 @@ func (r *PacketReader) ReadVarInt() (value int32, err error) {
 	return value, nil
 }
 
+func (r *PacketReader) ReadVarLong() (value int64, err error) {
+	value = 0
+	pos := 0
+	curByte := make([]byte, 1)
+
+	for {
+		n, err := r.rd.Read(curByte)
+		if n != 1 {
+			return value, errors.Join(error2.ErrDecodeReadFail, err)
+		}
+		value |= int64(curByte[0]&0x7f) << pos
+		if (curByte[0] & 0x80) == 0 {
+			break
+		}
+		pos += 7
+		if pos >= 64 {
+			return value, fmt.Errorf("VarLong %w", error2.ErrDecodeTooBig)
+		}
+	}
+	return value, nil
+}
+
 func (r *PacketReader) ReadBoolean() (value bool, err error) {
 	data := make([]byte, 1)
 	n, err := r.rd.Read(data)
@@ -230,6 +252,19 @@ func (r *PacketReader) ReadLong() (value int64, err error) {
 	} else {
 		return int64(b[7]) | int64(b[6])<<8 | int64(b[5])<<16 | int64(b[4])<<24 |
 			int64(b[3])<<32 | int64(b[2])<<40 | int64(b[1])<<48 | int64(b[0])<<56, nil
+	}
+}
+
+func (r *PacketReader) ReadULong() (value uint64, err error) {
+	b := make([]byte, 8)
+	n, err := r.rd.Read(b)
+	if err != nil {
+		return 0, errors.Join(error2.ErrDecodeReadFail, err)
+	} else if n != 8 {
+		return 0, errors.Join(fmt.Errorf("ulong length mismatch (excepted %d was %d", 8, n), error2.ErrDecodeLength)
+	} else {
+		return uint64(b[7]) | uint64(b[6])<<8 | uint64(b[5])<<16 | uint64(b[4])<<24 |
+			uint64(b[3])<<32 | uint64(b[2])<<40 | uint64(b[1])<<48 | uint64(b[0])<<56, nil
 	}
 }
 
@@ -383,4 +418,18 @@ func (r *PacketReader) ReadBytes(maxLen int) (value []byte, err error) {
 	} else {
 		return data[:n], nil
 	}
+}
+
+func (r *PacketReader) ReadBitSet() (value BitSet, err error) {
+	count, err := r.ReadVarInt()
+	if err != nil {
+		return nil, errors.Join(error2.ErrDecodeReadFail, err)
+	} else if count < 0 {
+		return nil, errors.Join(fmt.Errorf("count must be atleast 0 was %d", count), error2.ErrDecodeLength)
+	}
+	value = make([]uint64, count)
+	for i := int32(0); i < count; i++ {
+		value[i], err = r.ReadULong()
+	}
+	return value, nil
 }
