@@ -90,8 +90,27 @@ func (p Particle) Read(reader decode.PacketReader) (packet decode.Packet, err er
 	if err != nil {
 		return nil, err
 	}
-	var data ParticleData
-	switch pid {
+	data, err := readParticle(pid, reader)
+	if err != nil {
+		return nil, err
+	}
+	return Particle{
+		ParticleID:    pid,
+		LongDistance:  longDist,
+		X:             x,
+		Y:             y,
+		Z:             z,
+		OffsetX:       ox,
+		OffsetY:       oy,
+		OffsetZ:       oz,
+		MaxSpeed:      speed,
+		ParticleCount: count,
+		Data:          data,
+	}, nil
+}
+
+func readParticle(particleId int32, reader decode.PacketReader) (data ParticleData, err error) {
+	switch particleId {
 	case 2:
 		value, err := reader.ReadVarInt()
 		if err != nil {
@@ -218,19 +237,7 @@ func (p Particle) Read(reader decode.PacketReader) (packet decode.Packet, err er
 		}
 		data = ParticleShriek(value)
 	}
-	return Particle{
-		ParticleID:    pid,
-		LongDistance:  longDist,
-		X:             x,
-		Y:             y,
-		Z:             z,
-		OffsetX:       ox,
-		OffsetY:       oy,
-		OffsetZ:       oz,
-		MaxSpeed:      speed,
-		ParticleCount: count,
-		Data:          data,
-	}, nil
+	return data, nil
 }
 
 func (p Particle) IsValid() (reason error) {
