@@ -420,6 +420,32 @@ func (r *PacketReader) ReadBytes(maxLen int) (value []byte, err error) {
 	}
 }
 
+func (r *PacketReader) ReadBitSet0(bitCount int) (value BitSet, err error) {
+	if bitCount < 0 {
+		return nil, errors.Join(fmt.Errorf("bit count must be atleast 0 was %d", bitCount), error2.ErrDecodeLength)
+	}
+	bytesCount := bitCount >> 3
+	if (bitCount & 0b111) != 0 {
+		bytesCount += 1
+	}
+	raw, err := r.ReadBytesExact(bytesCount)
+	if err != nil {
+		return nil, errors.Join(error2.ErrDecodeReadFail, err)
+	}
+	longCount := bitCount >> 6
+	if (bytesCount & 0b111) != 0 {
+		padding := make([]byte, 8-(bytesCount&0b111))
+		raw = append(padding, raw...)
+		longCount += 1
+	}
+	value = make([]uint64, longCount)
+	for i := 0; i < longCount; i++ {
+		value[i] = uint64(raw[i<<3+7])<<56 | uint64(raw[i<<3+6])<<48 | uint64(raw[i<<3+5])<<40 | uint64(raw[i<<3+4])<<32 |
+			uint64(raw[i<<3+3])<<24 | uint64(raw[i<<3+2])<<16 | uint64(raw[i<<3+1])<<8 | uint64(raw[i<<3])
+	}
+	return value, nil
+}
+
 func (r *PacketReader) ReadBitSet() (value BitSet, err error) {
 	count, err := r.ReadVarInt()
 	if err != nil {
@@ -430,6 +456,9 @@ func (r *PacketReader) ReadBitSet() (value BitSet, err error) {
 	value = make([]uint64, count)
 	for i := int32(0); i < count; i++ {
 		value[i], err = r.ReadULong()
+		if err != nil {
+			return nil, errors.Join(error2.ErrDecodeReadFail, err)
+		}
 	}
 	return value, nil
 }
