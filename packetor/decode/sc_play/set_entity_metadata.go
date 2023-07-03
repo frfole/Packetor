@@ -1,6 +1,8 @@
 package sc_play
 
-import "Packetor/packetor/decode"
+import (
+	"Packetor/packetor/decode"
+)
 
 type SetEntityMetadataEntry struct {
 	Index uint8
@@ -24,6 +26,9 @@ func (p SetEntityMetadata) Read(reader decode.PacketReader) (packet decode.Packe
 		idx, err = reader.ReadUByte()
 		if err != nil {
 			return nil, err
+		}
+		if idx == 255 {
+			break
 		}
 		metaType, err := reader.ReadVarInt()
 		if err != nil {

@@ -119,6 +119,12 @@ func (p ChunkData) Read(reader decode.PacketReader) (packet decode.Packet, err e
 			return nil, err
 		}
 	}
+	count, err = reader.ReadVarInt()
+	if err != nil {
+		return nil, err
+	} else if count < 0 {
+		return nil, errors.Join(fmt.Errorf("count must be atleast 0 got %d", count), error2.ErrDecodeTooSmall)
+	}
 	blArr := make([]ChunkDataBlockLight, count)
 	for i := int32(0); i < count; i++ {
 		length, err := reader.ReadVarInt()

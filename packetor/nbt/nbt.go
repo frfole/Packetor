@@ -78,10 +78,12 @@ func readNbt(reader io.Reader, isTop bool) (value Compound, err error) {
 		name := string(nameB)
 		tag, err := readTag(reader, tagType[0])
 		if err != nil {
-			println(name, tagType[0])
 			return Compound{}, err
 		}
 		compound[name] = tag
+		if isTop {
+			break
+		}
 	}
 
 	return compound, nil

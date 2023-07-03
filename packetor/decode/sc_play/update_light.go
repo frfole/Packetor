@@ -22,11 +22,11 @@ type UpdateLight struct {
 }
 
 func (p UpdateLight) Read(reader decode.PacketReader) (packet decode.Packet, err error) {
-	cx, err := reader.ReadInt()
+	cx, err := reader.ReadVarInt()
 	if err != nil {
 		return nil, err
 	}
-	cz, err := reader.ReadInt()
+	cz, err := reader.ReadVarInt()
 	if err != nil {
 		return nil, err
 	}
@@ -64,6 +64,12 @@ func (p UpdateLight) Read(reader decode.PacketReader) (packet decode.Packet, err
 		if err != nil {
 			return nil, err
 		}
+	}
+	count, err = reader.ReadVarInt()
+	if err != nil {
+		return nil, err
+	} else if count < 0 {
+		return nil, errors.Join(fmt.Errorf("count must be atleast 0 got %d", count), error2.ErrDecodeTooSmall)
 	}
 	blArr := make([]UpdateLightBlockLight, count)
 	for i := int32(0); i < count; i++ {

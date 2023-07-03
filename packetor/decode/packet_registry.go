@@ -26,17 +26,17 @@ func (r PacketRegistry) HandleNewPacket(state byte, reader PacketReader) (err er
 	}
 	entry, ok := packets[packetId]
 	if !ok {
-		return errors.Join(fmt.Errorf("unknown packet id %d/%d", packetId, state), error2.ErrSoft, error2.ErrUnknownPacket)
+		return errors.Join(fmt.Errorf("unknown packet id %x/%d", packetId, state), error2.ErrSoft, error2.ErrUnknownPacket)
 	}
 	packet, err := entry.Decode(reader)
 	if err != nil {
-		return errors.Join(fmt.Errorf("failed to decode packet %d/%d", packetId, state), error2.ErrPacketDecode, err)
+		return errors.Join(fmt.Errorf("failed to decode packet %x/%d", packetId, state), error2.ErrPacketDecode, err)
 	} else if reason := packet.IsValid(); reason != nil {
-		return errors.Join(fmt.Errorf("invalid packet %d/%d: %w", packetId, state, reason), error2.ErrSoft, error2.ErrPacketInvalid)
+		return errors.Join(fmt.Errorf("invalid packet %x/%d: %w", packetId, state, reason), error2.ErrSoft, error2.ErrPacketInvalid)
 	}
 	if entry.Handle != nil {
 		if err = entry.Handle(packet); err != nil {
-			return errors.Join(fmt.Errorf("failed to handle packet %d/%d", packetId, state), error2.ErrPacketHandle, err)
+			return errors.Join(fmt.Errorf("failed to handle packet %x/%d", packetId, state), error2.ErrPacketHandle, err)
 		}
 	}
 	return nil

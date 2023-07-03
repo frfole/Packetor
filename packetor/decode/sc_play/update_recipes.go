@@ -130,9 +130,16 @@ func (p UpdateRecipes) Read(reader decode.PacketReader) (packet decode.Packet, e
 			if err != nil {
 				return nil, err
 			}
-			in, err := readIngredients(reader)
-			if err != nil {
-				return nil, err
+			count1 := width * height
+			if count1 < 0 {
+				return nil, errors.Join(fmt.Errorf("count must be atleast 0 got %d", count), error2.ErrDecodeTooSmall)
+			}
+			in := make([]UpdateRecipesIngredient, count1)
+			for j := int32(0); j < count1; j++ {
+				in[j], err = readIngredient(reader)
+				if err != nil {
+					return nil, err
+				}
 			}
 			out, err := reader.ReadSlot()
 			if err != nil {

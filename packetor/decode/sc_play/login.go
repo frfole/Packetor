@@ -12,7 +12,7 @@ type Login struct {
 	EntityID            int32
 	IsHardcore          bool
 	GameMode            uint8
-	PreviousGameMode    uint8
+	PreviousGameMode    int8
 	Dimensions          []string
 	RegistryCodec       nbt.Compound
 	DimensionType       string
@@ -32,7 +32,7 @@ type Login struct {
 }
 
 func (p Login) Read(reader decode.PacketReader) (packet decode.Packet, err error) {
-	eid, err := reader.ReadVarInt()
+	eid, err := reader.ReadInt()
 	if err != nil {
 		return nil, err
 	}
@@ -44,7 +44,7 @@ func (p Login) Read(reader decode.PacketReader) (packet decode.Packet, err error
 	if err != nil {
 		return nil, err
 	}
-	prevGm, err := reader.ReadUByte()
+	prevGm, err := reader.ReadSByte()
 	if err != nil {
 		return nil, err
 	}
@@ -152,7 +152,8 @@ func (p Login) Read(reader decode.PacketReader) (packet decode.Packet, err error
 func (p Login) IsValid() (reason error) {
 	if 3 < p.GameMode {
 		return fmt.Errorf("game mode must be in <0 ;3> was %d", p.GameMode)
-	} else if 3 < p.PreviousGameMode {
+	}
+	if p.PreviousGameMode < -1 || 3 < p.PreviousGameMode {
 		return fmt.Errorf("previous game mode must be in <0; 3> was %d", p.PreviousGameMode)
 	}
 	// TODO: validate registry codec?
