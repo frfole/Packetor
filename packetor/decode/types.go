@@ -1,6 +1,9 @@
 package decode
 
-import "Packetor/packetor/nbt"
+import (
+	"Packetor/packetor/nbt"
+	"fmt"
+)
 
 type (
 	Angle    byte
@@ -32,6 +35,10 @@ func (p Position) Y() int32 {
 
 func (p Position) Z() int32 {
 	return int32(p << 26 >> 38)
+}
+
+func (p Position) String() string {
+	return fmt.Sprintf("{%v %v %v}", p.X(), p.Y(), p.Z())
 }
 
 func (b BitSet) IsSet(index int) bool {

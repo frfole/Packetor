@@ -38,8 +38,8 @@ func (p SetContainerSlot) Read(reader decode.PacketReader) (packet decode.Packet
 }
 
 func (p SetContainerSlot) IsValid() (reason error) {
-	if p.Slot < 0 {
-		return fmt.Errorf("slot must be atleast 0 was %d", p.Slot)
+	if p.Slot < -1 {
+		return fmt.Errorf("slot must be atleast -1 was %d", p.Slot)
 	}
 	return nil
 }

@@ -303,6 +303,9 @@ func (r *PacketReader) ReadString0(maxLength int) (value string, err error) {
 	} else if int(length) > (maxLength * 4) {
 		return "", errors.Join(fmt.Errorf("encoded string length must be atmost %d was %d", maxLength*4, length), error2.ErrDecodeLength)
 	}
+	if length == 0 {
+		return "", nil
+	}
 	data := make([]byte, length)
 	n, err := r.rd.Read(data)
 	if err != nil {

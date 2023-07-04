@@ -131,9 +131,6 @@ func (p ProgramStructureBlock) IsValid() (reason error) {
 	if p.Rotation < 0 || 3 < p.Rotation {
 		return fmt.Errorf("rotation must be in <0; 3> was %d", p.Rotation)
 	}
-	if !(0 <= p.Integrity && p.Integrity <= 1) {
-		return fmt.Errorf("integrity must be in <0; 1> was %v", p.Integrity)
-	}
 	if (p.Flags &^ 0b111) != 0 {
 		return fmt.Errorf("unknown flags %b", p.Flags)
 	}

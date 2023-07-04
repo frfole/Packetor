@@ -13,6 +13,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"reflect"
 	"time"
 )
 
@@ -47,11 +48,20 @@ func (r *Route) Start() {
 			3: {
 				0x00: decode.PacketEntry{Decode: cs_play.ConfirmTeleportation{}.Read},
 				0x01: decode.PacketEntry{Decode: cs_play.QueryBlockEntityTag{}.Read},
-				0x02: decode.PacketEntry{Decode: cs_play.ChangeDifficulty{}.Read},
-				0x03: decode.PacketEntry{Decode: cs_play.MessageAck{}.Read},
+				0x02: decode.PacketEntry{Decode: cs_play.ChangeDifficulty{}.Read, Handle: func(packet decode.Packet) (err error) {
+					fmt.Println(reflect.TypeOf(packet), packet)
+					return nil
+				}},
+				0x03: decode.PacketEntry{Decode: cs_play.MessageAck{}.Read, Handle: func(packet decode.Packet) (err error) {
+					fmt.Println(reflect.TypeOf(packet), packet)
+					return nil
+				}},
 				0x04: decode.PacketEntry{Decode: cs_play.ChatCommand{}.Read},
 				0x05: decode.PacketEntry{Decode: cs_play.ChatMessage{}.Read},
-				0x06: decode.PacketEntry{Decode: cs_play.PlayerSession{}.Read},
+				0x06: decode.PacketEntry{Decode: cs_play.PlayerSession{}.Read, Handle: func(packet decode.Packet) (err error) {
+					fmt.Println(reflect.TypeOf(packet), packet)
+					return nil
+				}},
 				0x07: decode.PacketEntry{Decode: cs_play.ClientCommand{}.Read},
 				0x08: decode.PacketEntry{Decode: cs_play.ClientInformation{}.Read},
 				0x09: decode.PacketEntry{Decode: cs_play.CommandSuggestionsRequest{}.Read},
@@ -64,7 +74,10 @@ func (r *Route) Start() {
 				0x10: decode.PacketEntry{Decode: cs_play.Interact{}.Read},
 				0x11: decode.PacketEntry{Decode: cs_play.JigsawGenerate{}.Read},
 				0x12: decode.PacketEntry{Decode: cs_play.KeepAlive{}.Read},
-				0x13: decode.PacketEntry{Decode: cs_play.LockDifficulty{}.Read},
+				0x13: decode.PacketEntry{Decode: cs_play.LockDifficulty{}.Read, Handle: func(packet decode.Packet) (err error) {
+					fmt.Println(reflect.TypeOf(packet), packet)
+					return nil
+				}},
 				0x14: decode.PacketEntry{Decode: cs_play.SetPlayerPosition{}.Read},
 				0x15: decode.PacketEntry{Decode: cs_play.SetPlayerPositionRotation{}.Read},
 				0x16: decode.PacketEntry{Decode: cs_play.SetPlayerRotation{}.Read},
@@ -77,11 +90,17 @@ func (r *Route) Start() {
 				0x1d: decode.PacketEntry{Decode: cs_play.PlayerAction{}.Read},
 				0x1e: decode.PacketEntry{Decode: cs_play.PlayerCommand{}.Read},
 				0x1f: decode.PacketEntry{Decode: cs_play.PlayerInput{}.Read},
-				0x20: decode.PacketEntry{Decode: cs_play.Pong{}.Read},
+				0x20: decode.PacketEntry{Decode: cs_play.Pong{}.Read, Handle: func(packet decode.Packet) (err error) {
+					fmt.Println(reflect.TypeOf(packet), packet)
+					return nil
+				}},
 				0x21: decode.PacketEntry{Decode: cs_play.ChangeRecipeBookSettings{}.Read},
 				0x22: decode.PacketEntry{Decode: cs_play.SetSeenRecipe{}.Read},
 				0x23: decode.PacketEntry{Decode: cs_play.RenameItem{}.Read},
-				0x24: decode.PacketEntry{Decode: cs_play.ResourcePack{}.Read},
+				0x24: decode.PacketEntry{Decode: cs_play.ResourcePack{}.Read, Handle: func(packet decode.Packet) (err error) {
+					fmt.Println(reflect.TypeOf(packet), packet)
+					return nil
+				}},
 				0x25: decode.PacketEntry{Decode: cs_play.SeenAdvancements{}.Read},
 				0x26: decode.PacketEntry{Decode: cs_play.SelectTrade{}.Read},
 				0x27: decode.PacketEntry{Decode: cs_play.SetBeaconEffect{}.Read},
@@ -142,10 +161,16 @@ func (r *Route) Start() {
 				0x13: decode.PacketEntry{Decode: sc_play.SetContainerProperty{}.Read},
 				0x14: decode.PacketEntry{Decode: sc_play.SetContainerSlot{}.Read},
 				0x15: decode.PacketEntry{Decode: sc_play.SetCooldown{}.Read},
-				0x16: decode.PacketEntry{Decode: sc_play.ChatSuggestions{}.Read},
+				0x16: decode.PacketEntry{Decode: sc_play.ChatSuggestions{}.Read, Handle: func(packet decode.Packet) (err error) {
+					fmt.Println(reflect.TypeOf(packet), packet)
+					return nil
+				}},
 				0x17: decode.PacketEntry{Decode: sc_play.PluginMessage{}.Read},
 				0x18: decode.PacketEntry{Decode: sc_play.DamageEvent{}.Read},
-				0x19: decode.PacketEntry{Decode: sc_play.DeleteMessage{}.Read},
+				0x19: decode.PacketEntry{Decode: sc_play.DeleteMessage{}.Read, Handle: func(packet decode.Packet) (err error) {
+					fmt.Println(reflect.TypeOf(packet), packet)
+					return nil
+				}},
 				0x1a: decode.PacketEntry{Decode: sc_play.Disconnect{}.Read},
 				0x1b: decode.PacketEntry{Decode: sc_play.DisguisedChatMessage{}.Read},
 				0x1c: decode.PacketEntry{Decode: sc_play.EntityEvent{}.Read},
@@ -170,7 +195,10 @@ func (r *Route) Start() {
 				0x2f: decode.PacketEntry{Decode: sc_play.OpenBook{}.Read},
 				0x30: decode.PacketEntry{Decode: sc_play.OpenScreen{}.Read},
 				0x31: decode.PacketEntry{Decode: sc_play.OpenSignEditor{}.Read},
-				0x32: decode.PacketEntry{Decode: sc_play.Ping{}.Read},
+				0x32: decode.PacketEntry{Decode: sc_play.Ping{}.Read, Handle: func(packet decode.Packet) (err error) {
+					fmt.Println(reflect.TypeOf(packet), packet)
+					return nil
+				}},
 				0x33: decode.PacketEntry{Decode: sc_play.PlaceGhostRecipe{}.Read},
 				0x34: decode.PacketEntry{Decode: sc_play.PlayerAbilities{}.Read},
 				0x35: decode.PacketEntry{Decode: sc_play.PlayerChatMessage{}.Read},
@@ -184,7 +212,10 @@ func (r *Route) Start() {
 				0x3d: decode.PacketEntry{Decode: sc_play.UpdateRecipeBook{}.Read},
 				0x3e: decode.PacketEntry{Decode: sc_play.RemoveEntities{}.Read},
 				0x3f: decode.PacketEntry{Decode: sc_play.RemoveEntityEffect{}.Read},
-				0x40: decode.PacketEntry{Decode: sc_play.ResourcePack{}.Read},
+				0x40: decode.PacketEntry{Decode: sc_play.ResourcePack{}.Read, Handle: func(packet decode.Packet) (err error) {
+					fmt.Println(reflect.TypeOf(packet), packet)
+					return nil
+				}},
 				0x41: decode.PacketEntry{Decode: sc_play.Respawn{}.Read},
 				0x42: decode.PacketEntry{Decode: sc_play.SetHeadRotation{}.Read},
 				0x43: decode.PacketEntry{Decode: sc_play.UpdateSectionBlocks{}.Read},

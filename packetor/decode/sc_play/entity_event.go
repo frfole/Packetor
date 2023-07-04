@@ -8,7 +8,7 @@ type EntityEvent struct {
 }
 
 func (p EntityEvent) Read(reader decode.PacketReader) (packet decode.Packet, err error) {
-	eid, err := reader.ReadVarInt()
+	eid, err := reader.ReadInt()
 	if err != nil {
 		return nil, err
 	}

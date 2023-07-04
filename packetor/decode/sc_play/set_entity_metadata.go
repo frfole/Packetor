@@ -75,7 +75,7 @@ func (p SetEntityMetadata) Read(reader decode.PacketReader) (packet decode.Packe
 				return nil, err
 			}
 			if hasValue {
-				meta.Value, err = reader.ReadSByte()
+				meta.Value, err = reader.ReadChat()
 				if err != nil {
 					return nil, err
 				}
