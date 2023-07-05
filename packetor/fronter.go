@@ -2,7 +2,7 @@ package packetor
 
 import (
 	"context"
-	"log"
+	"github.com/sirupsen/logrus"
 	"net"
 	"time"
 )
@@ -13,7 +13,6 @@ type Fronter struct {
 	dialer   net.Dialer
 	backNet  string
 	backAddr string
-	logger   *log.Logger
 	timeout  time.Duration
 }
 
@@ -27,7 +26,6 @@ func NewFronter(ctx context.Context, network string, address string, timeout tim
 		},
 		backNet:  network,
 		backAddr: address,
-		logger:   log.Default(),
 		timeout:  timeout,
 	}
 }
@@ -42,7 +40,7 @@ func (f *Fronter) Bind(network string, address string, keepAlive time.Duration) 
 	if err != nil {
 		return err
 	}
-	f.logger.Println("Listening on", listener.Addr())
+	logrus.Info("Listening on ", listener.Addr())
 	go f.listenLoop(listener)
 	return nil
 }
@@ -51,7 +49,7 @@ func (f *Fronter) listenLoop(listener net.Listener) {
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
-			f.logger.Println("failed to accept new connection", err)
+			logrus.Error("failed to accept new connection ", err)
 			break
 		}
 		go f.handleConnection(conn)
@@ -62,23 +60,23 @@ func (f *Fronter) handleConnection(fConn net.Conn) {
 	defer func(fConn net.Conn) {
 		err := fConn.Close()
 		if err != nil {
-			f.logger.Println("failed while closing front connection", err)
+			logrus.Error("failed while closing front connection ", err)
 		}
 	}(fConn)
-	f.logger.Println("New connection", fConn.RemoteAddr())
+	logrus.Info("New connection ", fConn.RemoteAddr())
 
 	bConn, err := f.dialer.DialContext(f.ctx, f.backNet, f.backAddr)
 	if err != nil {
-		f.logger.Println("failed to dial", err)
+		logrus.Error("failed to dial ", err)
 		return
 	}
 	defer func(bConn net.Conn) {
 		err := bConn.Close()
 		if err != nil {
-			f.logger.Println("failed while closing back connection", err)
+			logrus.Error("failed while closing back connection ", err)
 		}
 	}(bConn)
-	f.logger.Println("Connection routed", fConn.RemoteAddr(), "->", bConn.RemoteAddr())
+	logrus.Info("Connection routed ", fConn.RemoteAddr(), "->", bConn.RemoteAddr())
 
 	errCh := make(chan error, 1)
 	route := Route{
@@ -93,7 +91,7 @@ func (f *Fronter) handleConnection(fConn net.Conn) {
 	select {
 	case err := <-errCh:
 		if err != nil {
-			f.logger.Println("Error", err)
+			logrus.Error("Error ", err)
 		}
 	case <-f.ctx.Done():
 	}

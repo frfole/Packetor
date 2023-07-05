@@ -1,5 +1,10 @@
 package tracker
 
+var DimensionTypeDefault = DimensionType{
+	MinY:   -64,
+	Height: 384,
+}
+
 type (
 	DimensionType struct {
 		MinY   int32

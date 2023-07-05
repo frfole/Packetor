@@ -13,8 +13,8 @@ import (
 	"Packetor/packetor/tracker"
 	"errors"
 	"fmt"
+	"github.com/sirupsen/logrus"
 	"net"
-	"reflect"
 	"time"
 )
 
@@ -146,7 +146,9 @@ func (r *Route) Start() {
 				0x07: decode.PacketEntry{Decode: sc_play.SetBlockDestroyStage{}.Read},
 				0x08: decode.PacketEntry{Decode: sc_play.BlockEntityData{}.Read},
 				0x09: decode.PacketEntry{Decode: sc_play.BlockAction{}.Read},
-				0x0a: decode.PacketEntry{Decode: sc_play.BlockUpdate{}.Read},
+				0x0a: decode.PacketEntry{Decode: sc_play.BlockUpdate{}.Read, Handle: []func(packet decode.Packet) (err error){
+					r.tracker.WorldTracker.UpdateChunk,
+				}},
 				0x0b: decode.PacketEntry{Decode: sc_play.BossBar{}.Read},
 				0x0c: decode.PacketEntry{Decode: sc_play.ChangeDifficulty{}.Read},
 				0x0d: decode.PacketEntry{Decode: sc_play.ChunkBiomes{}.Read},
@@ -169,24 +171,26 @@ func (r *Route) Start() {
 				0x1a: decode.PacketEntry{Decode: sc_play.Disconnect{}.Read},
 				0x1b: decode.PacketEntry{Decode: sc_play.DisguisedChatMessage{}.Read},
 				0x1c: decode.PacketEntry{Decode: sc_play.EntityEvent{}.Read},
-				0x1d: decode.PacketEntry{Decode: sc_play.Explosion{}.Read},
-				0x1e: decode.PacketEntry{Decode: sc_play.UnloadChunk{}.Read},
+				0x1d: decode.PacketEntry{Decode: sc_play.Explosion{}.Read, Handle: []func(packet decode.Packet) (err error){
+					r.tracker.WorldTracker.UpdateChunk,
+				}},
+				0x1e: decode.PacketEntry{Decode: sc_play.UnloadChunk{}.Read, Handle: []func(packet decode.Packet) (err error){
+					r.tracker.WorldTracker.UpdateChunk,
+				}},
 				0x1f: decode.PacketEntry{Decode: sc_play.GameEvent{}.Read},
 				0x20: decode.PacketEntry{Decode: sc_play.OpenHorseScreen{}.Read},
 				0x21: decode.PacketEntry{Decode: sc_play.HurtAnimation{}.Read},
 				0x22: decode.PacketEntry{Decode: sc_play.InitializeWorldBorder{}.Read},
 				0x23: decode.PacketEntry{Decode: sc_play.KeepAlive{}.Read},
-				0x24: decode.PacketEntry{Decode: sc_play.ChunkData{}.Read},
+				0x24: decode.PacketEntry{Decode: sc_play.ChunkData{}.Read, Handle: []func(packet decode.Packet) (err error){
+					r.tracker.WorldTracker.UpdateChunk,
+				}},
 				0x25: decode.PacketEntry{Decode: sc_play.WorldEvent{}.Read},
 				0x26: decode.PacketEntry{Decode: sc_play.Particle{}.Read},
 				0x27: decode.PacketEntry{Decode: sc_play.UpdateLight{}.Read},
 				0x28: decode.PacketEntry{Decode: sc_play.Login{}.Read, Handle: []func(packet decode.Packet) (err error){
 					func(packet decode.Packet) (err error) {
-						err = r.tracker.OnLogin(packet.(sc_play.Login))
-						if err != nil {
-							fmt.Printf("failed to process %v: %v\n", reflect.TypeOf(packet), err)
-						}
-						return nil
+						return r.tracker.OnLogin(packet.(sc_play.Login))
 					},
 				}},
 				0x29: decode.PacketEntry{Decode: sc_play.MapData{}.Read},
@@ -219,7 +223,9 @@ func (r *Route) Start() {
 				}},
 				0x41: decode.PacketEntry{Decode: sc_play.Respawn{}.Read},
 				0x42: decode.PacketEntry{Decode: sc_play.SetHeadRotation{}.Read},
-				0x43: decode.PacketEntry{Decode: sc_play.UpdateSectionBlocks{}.Read},
+				0x43: decode.PacketEntry{Decode: sc_play.UpdateSectionBlocks{}.Read, Handle: []func(packet decode.Packet) (err error){
+					r.tracker.WorldTracker.UpdateChunk,
+				}},
 				0x44: decode.PacketEntry{Decode: sc_play.SelectAdvancementsTab{}.Read},
 				0x45: decode.PacketEntry{Decode: sc_play.ServerData{}.Read},
 				0x46: decode.PacketEntry{Decode: sc_play.SetActionBarText{}.Read},
@@ -295,7 +301,7 @@ func (r *Route) handleFBTraffic() {
 				continue
 			}
 			if errors.Is(err, error2.ErrSoft) {
-				fmt.Printf("client->server handle: %v\n", err)
+				logrus.Errorf("client->server handle: %v", err)
 			} else {
 				r.errCh <- fmt.Errorf("client->server handle: %w", err)
 			}
@@ -329,7 +335,7 @@ func (r *Route) handleBFTraffic() {
 				continue
 			}
 			if errors.Is(err, error2.ErrSoft) {
-				fmt.Printf("server->client handle: %v\n", err)
+				logrus.Errorf("server->client handle: %v", err)
 			} else {
 				r.errCh <- fmt.Errorf("server->client handle: %w", err)
 			}

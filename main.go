@@ -2,17 +2,17 @@ package main
 
 import (
 	"Packetor/packetor"
-	"Packetor/packetor/data"
+	"Packetor/packetor/registries"
 	"context"
-	"log"
+	"github.com/sirupsen/logrus"
 	"time"
 )
 
 func main() {
-	registry := data.GetBlockRegistry()
-	err := registry.Load("1.20")
+	reg := registries.GetRegistry()
+	err := reg.Load("1.20")
 	if err != nil {
-		log.Fatal("failed to load data", err)
+		logrus.Fatal("failed to load data ", err)
 	}
 	fronter := packetor.NewFronter(
 		context.Background(),
@@ -22,7 +22,7 @@ func main() {
 		10*time.Second)
 	err = fronter.Bind("tcp", "127.0.0.1:25565", 10*time.Second)
 	if err != nil {
-		log.Println("failed to bind", err)
+		logrus.Fatal("failed to bind ", err)
 	}
 	select {}
 }

@@ -1,4 +1,4 @@
-package data
+package registries
 
 import (
 	"encoding/json"
@@ -17,13 +17,7 @@ type BlockRegistry struct {
 	states []int32
 }
 
-var blockRegistryInst = BlockRegistry{}
-
-func GetBlockRegistry() *BlockRegistry {
-	return &blockRegistryInst
-}
-
-func (r *BlockRegistry) Load(version string) error {
+func (r *BlockRegistry) load(version string) error {
 	resp, err := http.Get(fmt.Sprintf("https://github.com/PrismarineJS/minecraft-data/raw/master/data/pc/%v/blocks.json", version))
 	if err != nil {
 		return fmt.Errorf("failed to get blocks.json: %w", err)

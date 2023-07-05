@@ -8,12 +8,12 @@ import (
 )
 
 type UpdateSectionBlocks struct {
-	ChunkSectionPosition int64
+	ChunkSectionPosition uint64
 	Blocks               []int64
 }
 
 func (p UpdateSectionBlocks) Read(reader decode.PacketReader) (packet decode.Packet, err error) {
-	pos, err := reader.ReadLong()
+	pos, err := reader.ReadULong()
 	if err != nil {
 		return nil, err
 	}

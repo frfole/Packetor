@@ -4,6 +4,7 @@ import (
 	error2 "Packetor/packetor/error"
 	"errors"
 	"fmt"
+	"github.com/sirupsen/logrus"
 )
 
 type PacketEntry struct {
@@ -36,7 +37,10 @@ func (r PacketRegistry) HandleNewPacket(state byte, reader PacketReader) (err er
 	}
 	if entry.Handle != nil {
 		for i := range entry.Handle {
-			if err = entry.Handle[i](packet); err != nil {
+			err = entry.Handle[i](packet)
+			if err != nil && errors.Is(err, error2.ErrSoft) {
+				logrus.Errorf("soft failed to handle packet %x/%d using handle index %d", packetId, state, i)
+			} else if err != nil {
 				return errors.Join(fmt.Errorf("failed to handle packet %x/%d using handle index %d", packetId, state, i), error2.ErrPacketHandle, err)
 			}
 		}

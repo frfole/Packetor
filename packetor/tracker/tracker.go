@@ -17,12 +17,13 @@ func NewTracker() Tracker {
 		},
 		WorldTracker: WorldTracker{
 			Dimension:     "",
-			DimensionType: nil,
+			DimensionType: DimensionTypeDefault,
+			Chunks:        map[uint64]Chunk{},
 		},
 	}
 }
 
-func (receiver Tracker) OnLogin(packet sc_play.Login) error {
+func (receiver *Tracker) OnLogin(packet sc_play.Login) error {
 	codec := packet.RegistryCodec
 	dimensionsTag := codec[""].(nbt.Compound)["minecraft:dimension_type"].(nbt.Compound)["value"].(nbt.List)
 	receiver.ServerInfo.DimensionTypes = map[string]DimensionType{}

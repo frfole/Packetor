@@ -4,7 +4,7 @@ import (
 	"Packetor/packetor/decode"
 	"Packetor/packetor/decode/cs_handshake"
 	"Packetor/packetor/decode/sc_login"
-	"fmt"
+	"github.com/sirupsen/logrus"
 	"reflect"
 )
 
@@ -23,6 +23,6 @@ func (r *Route) handleSetCompression(packet decode.Packet) (err error) {
 }
 
 func (r *Route) printPacket(packet decode.Packet) (err error) {
-	fmt.Println(reflect.TypeOf(packet), packet)
+	logrus.Info(reflect.TypeOf(packet), packet)
 	return nil
 }
