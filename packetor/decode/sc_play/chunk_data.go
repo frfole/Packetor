@@ -6,6 +6,7 @@ import (
 	"Packetor/packetor/nbt"
 	"errors"
 	"fmt"
+	"io"
 )
 
 type ChunkDataBlockEntity struct {
@@ -17,12 +18,17 @@ type ChunkDataBlockEntity struct {
 
 type ChunkDataSkyLight []byte
 type ChunkDataBlockLight []byte
+type ChunkDataSection struct {
+	BlockCount int16
+	Blocks     decode.PaletteContainer
+	Biomes     decode.PaletteContainer
+}
 
 type ChunkData struct {
 	ChunkX              int32
 	ChunkZ              int32
 	Heightmaps          nbt.Compound
-	Data                []byte
+	Data                []ChunkDataSection
 	BlockEntities       []ChunkDataBlockEntity
 	SkyLightMask        decode.BitSet
 	BlockLightMash      decode.BitSet
@@ -49,7 +55,36 @@ func (p ChunkData) Read(reader decode.PacketReader) (packet decode.Packet, err e
 	if err != nil {
 		return nil, err
 	}
-	data, err := reader.ReadBytesExact(int(count))
+	sectionsData, err := reader.ReadBytesExact(int(count))
+	var sections []ChunkDataSection
+	{
+		sectionReader := decode.NewPacketReaderBytes(sectionsData)
+		for {
+			blockCount, err := sectionReader.ReadShort()
+			if err != nil && errors.Is(err, io.EOF) {
+				break
+			} else if err != nil {
+				return nil, err
+			}
+			blocks, err := sectionReader.ReadPaletteContainer(16, 8)
+			if err != nil && errors.Is(err, io.EOF) {
+				break
+			} else if err != nil {
+				return nil, err
+			}
+			biomes, err := sectionReader.ReadPaletteContainer(4, 3)
+			if err != nil && errors.Is(err, io.EOF) {
+				break
+			} else if err != nil {
+				return nil, err
+			}
+			sections = append(sections, ChunkDataSection{
+				BlockCount: blockCount,
+				Blocks:     blocks,
+				Biomes:     biomes,
+			})
+		}
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -142,7 +177,7 @@ func (p ChunkData) Read(reader decode.PacketReader) (packet decode.Packet, err e
 		ChunkX:              cx,
 		ChunkZ:              cz,
 		Heightmaps:          heightmaps,
-		Data:                data,
+		Data:                sections,
 		BlockEntities:       bEntities,
 		SkyLightMask:        slMask,
 		BlockLightMash:      blMask,

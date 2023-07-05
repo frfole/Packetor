@@ -33,6 +33,17 @@ func NewPacketReader(conn net.Conn) PacketReader {
 	}
 }
 
+func NewPacketReaderBytes(raw []byte) PacketReader {
+	return PacketReader{
+		zrd:     nil,
+		parent:  nil,
+		rd:      bytes.NewReader(raw),
+		conn:    nil,
+		data:    raw,
+		HasComp: false,
+	}
+}
+
 func (r *PacketReader) ReadPacket() (raw []byte, err error) {
 	length, raw, err := r.readVarIntC()
 	if err != nil {
@@ -464,4 +475,57 @@ func (r *PacketReader) ReadBitSet() (value BitSet, err error) {
 		}
 	}
 	return value, nil
+}
+
+func (r *PacketReader) ReadPaletteContainer(dimension uint8, maxBits uint8) (value PaletteContainer, err error) {
+	bits, err := r.ReadUByte()
+	if err != nil {
+		return PaletteContainer{}, err
+	}
+
+	var palette Palette
+	if bits == 0 {
+		stateId, err := r.ReadVarInt()
+		if err != nil {
+			return PaletteContainer{}, err
+		}
+		palette = PaletteSingle(stateId)
+	} else if bits <= maxBits {
+		count, err := r.ReadVarInt()
+		if err != nil {
+			return PaletteContainer{}, err
+		} else if count < 0 {
+			return PaletteContainer{}, errors.Join(fmt.Errorf("count must be atleast 0 got %d", count), error2.ErrDecodeTooSmall)
+		}
+		stateIds := make([]int32, count)
+		for i := int32(0); i < count; i++ {
+			stateIds[i], err = r.ReadVarInt()
+			if err != nil {
+				return PaletteContainer{}, err
+			}
+		}
+		palette = PaletteArray(stateIds)
+	} else {
+		palette = PaletteDirect{}
+	}
+
+	count, err := r.ReadVarInt()
+	if err != nil {
+		return PaletteContainer{}, err
+	} else if count < 0 {
+		return PaletteContainer{}, errors.Join(fmt.Errorf("count must be atleast 0 was %d", count), error2.ErrDecodeTooSmall)
+	}
+	data := make([]uint64, count)
+	for i := int32(0); i < count; i++ {
+		data[i], err = r.ReadULong()
+		if err != nil {
+			return PaletteContainer{}, err
+		}
+	}
+	return PaletteContainer{
+		Dimension:    dimension,
+		BitsPerEntry: bits,
+		Palette:      palette,
+		Data:         data,
+	}, nil
 }

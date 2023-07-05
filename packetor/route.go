@@ -10,6 +10,7 @@ import (
 	"Packetor/packetor/decode/sc_play"
 	"Packetor/packetor/decode/sc_status"
 	error2 "Packetor/packetor/error"
+	"Packetor/packetor/tracker"
 	"errors"
 	"fmt"
 	"net"
@@ -28,13 +29,17 @@ type Route struct {
 	cReg     decode.PacketRegistry
 	sReg     decode.PacketRegistry
 	compress bool
+	tracker  tracker.Tracker
 }
 
 func (r *Route) Start() {
+	r.tracker = tracker.NewTracker()
 	r.cReg = decode.PacketRegistry{
 		Packets: map[byte]map[int32]decode.PacketEntry{
 			0: {
-				0x00: decode.PacketEntry{Decode: cs_handshake.Handshake{}.Read, Handle: r.handleHandshakeC},
+				0x00: decode.PacketEntry{Decode: cs_handshake.Handshake{}.Read, Handle: []func(packet decode.Packet) (err error){
+					r.handleHandshakeC,
+				}},
 			},
 			1: {
 				0x00: decode.PacketEntry{Decode: cs_status.StatusRequest{}.Read},
@@ -48,19 +53,16 @@ func (r *Route) Start() {
 			3: {
 				0x00: decode.PacketEntry{Decode: cs_play.ConfirmTeleportation{}.Read},
 				0x01: decode.PacketEntry{Decode: cs_play.QueryBlockEntityTag{}.Read},
-				0x02: decode.PacketEntry{Decode: cs_play.ChangeDifficulty{}.Read, Handle: func(packet decode.Packet) (err error) {
-					fmt.Println(reflect.TypeOf(packet), packet)
-					return nil
+				0x02: decode.PacketEntry{Decode: cs_play.ChangeDifficulty{}.Read, Handle: []func(packet decode.Packet) (err error){
+					r.printPacket,
 				}},
-				0x03: decode.PacketEntry{Decode: cs_play.MessageAck{}.Read, Handle: func(packet decode.Packet) (err error) {
-					fmt.Println(reflect.TypeOf(packet), packet)
-					return nil
+				0x03: decode.PacketEntry{Decode: cs_play.MessageAck{}.Read, Handle: []func(packet decode.Packet) (err error){
+					r.printPacket,
 				}},
 				0x04: decode.PacketEntry{Decode: cs_play.ChatCommand{}.Read},
 				0x05: decode.PacketEntry{Decode: cs_play.ChatMessage{}.Read},
-				0x06: decode.PacketEntry{Decode: cs_play.PlayerSession{}.Read, Handle: func(packet decode.Packet) (err error) {
-					fmt.Println(reflect.TypeOf(packet), packet)
-					return nil
+				0x06: decode.PacketEntry{Decode: cs_play.PlayerSession{}.Read, Handle: []func(packet decode.Packet) (err error){
+					r.printPacket,
 				}},
 				0x07: decode.PacketEntry{Decode: cs_play.ClientCommand{}.Read},
 				0x08: decode.PacketEntry{Decode: cs_play.ClientInformation{}.Read},
@@ -74,9 +76,8 @@ func (r *Route) Start() {
 				0x10: decode.PacketEntry{Decode: cs_play.Interact{}.Read},
 				0x11: decode.PacketEntry{Decode: cs_play.JigsawGenerate{}.Read},
 				0x12: decode.PacketEntry{Decode: cs_play.KeepAlive{}.Read},
-				0x13: decode.PacketEntry{Decode: cs_play.LockDifficulty{}.Read, Handle: func(packet decode.Packet) (err error) {
-					fmt.Println(reflect.TypeOf(packet), packet)
-					return nil
+				0x13: decode.PacketEntry{Decode: cs_play.LockDifficulty{}.Read, Handle: []func(packet decode.Packet) (err error){
+					r.printPacket,
 				}},
 				0x14: decode.PacketEntry{Decode: cs_play.SetPlayerPosition{}.Read},
 				0x15: decode.PacketEntry{Decode: cs_play.SetPlayerPositionRotation{}.Read},
@@ -90,16 +91,14 @@ func (r *Route) Start() {
 				0x1d: decode.PacketEntry{Decode: cs_play.PlayerAction{}.Read},
 				0x1e: decode.PacketEntry{Decode: cs_play.PlayerCommand{}.Read},
 				0x1f: decode.PacketEntry{Decode: cs_play.PlayerInput{}.Read},
-				0x20: decode.PacketEntry{Decode: cs_play.Pong{}.Read, Handle: func(packet decode.Packet) (err error) {
-					fmt.Println(reflect.TypeOf(packet), packet)
-					return nil
+				0x20: decode.PacketEntry{Decode: cs_play.Pong{}.Read, Handle: []func(packet decode.Packet) (err error){
+					r.printPacket,
 				}},
 				0x21: decode.PacketEntry{Decode: cs_play.ChangeRecipeBookSettings{}.Read},
 				0x22: decode.PacketEntry{Decode: cs_play.SetSeenRecipe{}.Read},
 				0x23: decode.PacketEntry{Decode: cs_play.RenameItem{}.Read},
-				0x24: decode.PacketEntry{Decode: cs_play.ResourcePack{}.Read, Handle: func(packet decode.Packet) (err error) {
-					fmt.Println(reflect.TypeOf(packet), packet)
-					return nil
+				0x24: decode.PacketEntry{Decode: cs_play.ResourcePack{}.Read, Handle: []func(packet decode.Packet) (err error){
+					r.printPacket,
 				}},
 				0x25: decode.PacketEntry{Decode: cs_play.SeenAdvancements{}.Read},
 				0x26: decode.PacketEntry{Decode: cs_play.SelectTrade{}.Read},
@@ -128,13 +127,11 @@ func (r *Route) Start() {
 			2: {
 				0x00: decode.PacketEntry{Decode: sc_login.Disconnect{}.Read},
 				0x01: decode.PacketEntry{Decode: sc_login.EncryptionRequest{}.Read},
-				0x02: decode.PacketEntry{Decode: sc_login.LoginSuccess{}.Read, Handle: func(packet decode.Packet) (err error) {
-					r.state = 3
-					return nil
+				0x02: decode.PacketEntry{Decode: sc_login.LoginSuccess{}.Read, Handle: []func(packet decode.Packet) (err error){
+					r.handleLoginSuccess,
 				}},
-				0x03: decode.PacketEntry{Decode: sc_login.SetCompression(0).Read, Handle: func(packet decode.Packet) (err error) {
-					r.compress = packet.(sc_login.SetCompression).Compression()
-					return nil
+				0x03: decode.PacketEntry{Decode: sc_login.SetCompression(0).Read, Handle: []func(packet decode.Packet) (err error){
+					r.handleSetCompression,
 				}},
 				0x04: decode.PacketEntry{Decode: sc_login.LoginPluginRequest{}.Read},
 			},
@@ -161,15 +158,13 @@ func (r *Route) Start() {
 				0x13: decode.PacketEntry{Decode: sc_play.SetContainerProperty{}.Read},
 				0x14: decode.PacketEntry{Decode: sc_play.SetContainerSlot{}.Read},
 				0x15: decode.PacketEntry{Decode: sc_play.SetCooldown{}.Read},
-				0x16: decode.PacketEntry{Decode: sc_play.ChatSuggestions{}.Read, Handle: func(packet decode.Packet) (err error) {
-					fmt.Println(reflect.TypeOf(packet), packet)
-					return nil
+				0x16: decode.PacketEntry{Decode: sc_play.ChatSuggestions{}.Read, Handle: []func(packet decode.Packet) (err error){
+					r.printPacket,
 				}},
 				0x17: decode.PacketEntry{Decode: sc_play.PluginMessage{}.Read},
 				0x18: decode.PacketEntry{Decode: sc_play.DamageEvent{}.Read},
-				0x19: decode.PacketEntry{Decode: sc_play.DeleteMessage{}.Read, Handle: func(packet decode.Packet) (err error) {
-					fmt.Println(reflect.TypeOf(packet), packet)
-					return nil
+				0x19: decode.PacketEntry{Decode: sc_play.DeleteMessage{}.Read, Handle: []func(packet decode.Packet) (err error){
+					r.printPacket,
 				}},
 				0x1a: decode.PacketEntry{Decode: sc_play.Disconnect{}.Read},
 				0x1b: decode.PacketEntry{Decode: sc_play.DisguisedChatMessage{}.Read},
@@ -185,7 +180,15 @@ func (r *Route) Start() {
 				0x25: decode.PacketEntry{Decode: sc_play.WorldEvent{}.Read},
 				0x26: decode.PacketEntry{Decode: sc_play.Particle{}.Read},
 				0x27: decode.PacketEntry{Decode: sc_play.UpdateLight{}.Read},
-				0x28: decode.PacketEntry{Decode: sc_play.Login{}.Read},
+				0x28: decode.PacketEntry{Decode: sc_play.Login{}.Read, Handle: []func(packet decode.Packet) (err error){
+					func(packet decode.Packet) (err error) {
+						err = r.tracker.OnLogin(packet.(sc_play.Login))
+						if err != nil {
+							fmt.Printf("failed to process %v: %v\n", reflect.TypeOf(packet), err)
+						}
+						return nil
+					},
+				}},
 				0x29: decode.PacketEntry{Decode: sc_play.MapData{}.Read},
 				0x2a: decode.PacketEntry{Decode: sc_play.MerchantOffers{}.Read},
 				0x2b: decode.PacketEntry{Decode: sc_play.UpdateEntityPosition{}.Read},
@@ -195,9 +198,8 @@ func (r *Route) Start() {
 				0x2f: decode.PacketEntry{Decode: sc_play.OpenBook{}.Read},
 				0x30: decode.PacketEntry{Decode: sc_play.OpenScreen{}.Read},
 				0x31: decode.PacketEntry{Decode: sc_play.OpenSignEditor{}.Read},
-				0x32: decode.PacketEntry{Decode: sc_play.Ping{}.Read, Handle: func(packet decode.Packet) (err error) {
-					fmt.Println(reflect.TypeOf(packet), packet)
-					return nil
+				0x32: decode.PacketEntry{Decode: sc_play.Ping{}.Read, Handle: []func(packet decode.Packet) (err error){
+					r.printPacket,
 				}},
 				0x33: decode.PacketEntry{Decode: sc_play.PlaceGhostRecipe{}.Read},
 				0x34: decode.PacketEntry{Decode: sc_play.PlayerAbilities{}.Read},
@@ -212,9 +214,8 @@ func (r *Route) Start() {
 				0x3d: decode.PacketEntry{Decode: sc_play.UpdateRecipeBook{}.Read},
 				0x3e: decode.PacketEntry{Decode: sc_play.RemoveEntities{}.Read},
 				0x3f: decode.PacketEntry{Decode: sc_play.RemoveEntityEffect{}.Read},
-				0x40: decode.PacketEntry{Decode: sc_play.ResourcePack{}.Read, Handle: func(packet decode.Packet) (err error) {
-					fmt.Println(reflect.TypeOf(packet), packet)
-					return nil
+				0x40: decode.PacketEntry{Decode: sc_play.ResourcePack{}.Read, Handle: []func(packet decode.Packet) (err error){
+					r.printPacket,
 				}},
 				0x41: decode.PacketEntry{Decode: sc_play.Respawn{}.Read},
 				0x42: decode.PacketEntry{Decode: sc_play.SetHeadRotation{}.Read},

@@ -3,6 +3,7 @@ package decode
 import (
 	"Packetor/packetor/nbt"
 	"fmt"
+	"reflect"
 )
 
 type (
@@ -14,7 +15,20 @@ type (
 		ItemCount uint8
 		ItemNbt   nbt.Compound
 	}
-	BitSet []uint64
+	BitSet  []uint64
+	Palette interface {
+		Get(index int32) int32
+	}
+	PaletteSingle int32
+	PaletteArray  []int32
+	PaletteDirect struct {
+	}
+	PaletteContainer struct {
+		Dimension    uint8
+		BitsPerEntry uint8
+		Palette      Palette
+		Data         []uint64
+	}
 )
 
 func (a Angle) asFloat32() float32 {
@@ -46,4 +60,37 @@ func (b BitSet) IsSet(index int) bool {
 		return false
 	}
 	return (b[index>>6] >> (index & 63)) == 1
+}
+
+func (receiver PaletteSingle) Get(_ int32) int32 {
+	return int32(receiver)
+}
+
+func (receiver PaletteArray) Get(index int32) int32 {
+	return receiver[index]
+}
+
+func (receiver PaletteDirect) Get(index int32) int32 {
+	return index
+}
+
+func (p PaletteContainer) GetState(x int, y int, z int) int32 {
+	if reflect.TypeOf(p.Palette) == reflect.TypeOf(PaletteSingle(0)) {
+		return 0
+	}
+	var sectionIndex int
+	if p.Dimension == 16 {
+		sectionIndex = ((y & 0xf) << 8) | ((z & 0xf) << 4) | (x & 0xf)
+	} else {
+		sectionIndex = ((y & 0x3) << 4) | ((z & 0x3) << 2) | (x & 0x3)
+	}
+	valuesPerLong := 64 / int(p.BitsPerEntry)
+	index := sectionIndex / valuesPerLong
+	bitIndex := (sectionIndex - index*valuesPerLong) * int(p.BitsPerEntry)
+	value := (p.Data[index] >> bitIndex) & ((1 << p.BitsPerEntry) - 1)
+	return p.getState0(int32(value))
+}
+
+func (p PaletteContainer) getState0(data int32) int32 {
+	return p.Palette.Get(data)
 }
