@@ -74,7 +74,7 @@ func (receiver *WorldTracker) UpdateChunk(packet decode.Packet) error {
 		}
 	} else if sectionPacket, ok := packet.(sc_play.UpdateSectionBlocks); ok {
 		chunkIndex := sectionPacket.ChunkSectionPosition &^ 0xfffff
-		sectionIdx := int32(sectionPacket.ChunkSectionPosition<<44>>44) - (receiver.DimensionType.MinY / 16)
+		sectionIdx := int32(int64(sectionPacket.ChunkSectionPosition)<<44>>44) - (receiver.DimensionType.MinY / 16)
 		chunk, ok := receiver.Chunks[chunkIndex]
 		if !ok {
 			return fmt.Errorf("chunk[%v %v] not loaded", chunk.ChunkX, chunk.ChunkZ)

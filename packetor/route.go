@@ -221,7 +221,9 @@ func (r *Route) Start() {
 				0x40: decode.PacketEntry{Decode: sc_play.ResourcePack{}.Read, Handle: []func(packet decode.Packet) (err error){
 					r.printPacket,
 				}},
-				0x41: decode.PacketEntry{Decode: sc_play.Respawn{}.Read},
+				0x41: decode.PacketEntry{Decode: sc_play.Respawn{}.Read, Handle: []func(packet decode.Packet) (err error){
+					r.tracker.OnRespawn,
+				}},
 				0x42: decode.PacketEntry{Decode: sc_play.SetHeadRotation{}.Read},
 				0x43: decode.PacketEntry{Decode: sc_play.UpdateSectionBlocks{}.Read, Handle: []func(packet decode.Packet) (err error){
 					r.tracker.WorldTracker.UpdateChunk,
@@ -341,5 +343,6 @@ func (r *Route) handleBFTraffic() {
 			}
 		}
 		reader.HasComp = r.compress
+		reader.Context.WorldHeight = r.tracker.WorldTracker.DimensionType.Height / 16
 	}
 }

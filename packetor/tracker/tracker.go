@@ -1,8 +1,10 @@
 package tracker
 
 import (
+	"Packetor/packetor/decode"
 	"Packetor/packetor/decode/sc_play"
 	"Packetor/packetor/nbt"
+	"fmt"
 )
 
 type Tracker struct {
@@ -37,7 +39,19 @@ func (receiver *Tracker) OnLogin(packet sc_play.Login) error {
 
 	err := receiver.ResetWorldTracker(packet.DimensionName, packet.DimensionType)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to reset world tracker: %w", err)
+	}
+	return nil
+}
+
+func (receiver *Tracker) OnRespawn(basePacket decode.Packet) error {
+	packet, ok := basePacket.(sc_play.Respawn)
+	if !ok {
+		return nil
+	}
+	err := receiver.ResetWorldTracker(packet.DimensionName, packet.DimensionType)
+	if err != nil {
+		return fmt.Errorf("failed to reset world tracker: %w", err)
 	}
 	return nil
 }

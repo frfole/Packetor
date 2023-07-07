@@ -58,8 +58,9 @@ func (p ChunkData) Read(reader decode.PacketReader) (packet decode.Packet, err e
 	sectionsData, err := reader.ReadBytesExact(int(count))
 	var sections []ChunkDataSection
 	{
+		height := reader.Context.WorldHeight
 		sectionReader := decode.NewPacketReaderBytes(sectionsData)
-		for {
+		for i := int32(0); i < height; i++ {
 			blockCount, err := sectionReader.ReadShort()
 			if err != nil && errors.Is(err, io.EOF) {
 				break

@@ -14,6 +14,10 @@ import (
 	"unicode/utf8"
 )
 
+type PacketReaderContext struct {
+	WorldHeight int32
+}
+
 type PacketReader struct {
 	zrd     io.ReadCloser
 	parent  *bytes.Reader
@@ -21,6 +25,7 @@ type PacketReader struct {
 	conn    net.Conn
 	data    []byte
 	HasComp bool
+	Context *PacketReaderContext
 }
 
 func NewPacketReader(conn net.Conn) PacketReader {
@@ -30,6 +35,9 @@ func NewPacketReader(conn net.Conn) PacketReader {
 		rd:      nil,
 		conn:    conn,
 		HasComp: false,
+		Context: &PacketReaderContext{
+			WorldHeight: -1,
+		},
 	}
 }
 
@@ -41,6 +49,9 @@ func NewPacketReaderBytes(raw []byte) PacketReader {
 		conn:    nil,
 		data:    raw,
 		HasComp: false,
+		Context: &PacketReaderContext{
+			WorldHeight: -1,
+		},
 	}
 }
 

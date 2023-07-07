@@ -172,6 +172,8 @@ func (p *PaletteContainer) resize(newBits uint8) {
 		}
 	}
 	p.BitsPerEntry = newBits
+	valuesPerLong := 64 / int(p.BitsPerEntry)
+	p.Data = make([]uint64, dimension*dimension*dimension/valuesPerLong)
 	for rx := 0; rx < dimension; rx++ {
 		for ry := 0; ry < dimension; ry++ {
 			for rz := 0; rz < dimension; rz++ {
