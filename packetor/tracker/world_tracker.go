@@ -39,7 +39,7 @@ func (receiver *Tracker) ResetWorldTracker(dimName string, dimTypeName string) e
 	return nil
 }
 
-func (receiver *WorldTracker) UpdateChunk(packet decode.Packet) error {
+func (receiver *WorldTracker) UpdateChunk(packet decode.Packet, _ decode.PacketContext) error {
 	if chunkPacket, ok := packet.(sc_play.ChunkData); ok {
 		chunkIndex := ((uint64(chunkPacket.ChunkX) & 0x3FFFFF) << 42) | ((uint64(chunkPacket.ChunkZ) & 0x3FFFFF) << 20)
 		sections := make([]*ChunkSection, len(chunkPacket.Data))

@@ -11,15 +11,17 @@ import (
 	"Packetor/packetor/decode/sc_status"
 	error2 "Packetor/packetor/error"
 	"Packetor/packetor/tracker"
+	"context"
 	"errors"
 	"fmt"
 	"github.com/sirupsen/logrus"
 	"net"
+	"reflect"
+	"runtime/trace"
 	"time"
 )
 
 // Route handles traffic through Packetor
-// TODO: check if we are processing packets in correct order?
 type Route struct {
 	fronter  *Fronter
 	fConn    net.Conn
@@ -37,46 +39,60 @@ func (r *Route) Start() {
 	r.cReg = decode.PacketRegistry{
 		Packets: map[byte]map[int32]decode.PacketEntry{
 			0: {
-				0x00: decode.PacketEntry{Decode: cs_handshake.Handshake{}.Read, Handle: []func(packet decode.Packet) (err error){
+				0x00: decode.PacketEntry{Decode: cs_handshake.Handshake{}.Read, Handle: []func(packet decode.Packet, context decode.PacketContext) (err error){
 					r.handleHandshakeC,
 				}},
 			},
 			1: {
-				0x00: decode.PacketEntry{Decode: cs_status.StatusRequest{}.Read},
-				0x01: decode.PacketEntry{Decode: cs_status.PingRequest{}.Read},
+				0x00: decode.PacketEntry{Decode: cs_status.StatusRequest{}.Read, Handle: []func(packet decode.Packet, context decode.PacketContext) (err error){
+					r.tracker.PacketTracker.LimitCount(1),
+				}},
+				0x01: decode.PacketEntry{Decode: cs_status.PingRequest{}.Read, Handle: []func(packet decode.Packet, context decode.PacketContext) (err error){
+					r.tracker.PacketTracker.LimitCount(1),
+				}},
 			},
 			2: {
-				0x00: decode.PacketEntry{Decode: cs_login.LoginStart{}.Read},
-				0x01: decode.PacketEntry{Decode: cs_login.EncryptionResponse{}.Read},
+				0x00: decode.PacketEntry{Decode: cs_login.LoginStart{}.Read, Handle: []func(packet decode.Packet, context decode.PacketContext) (err error){
+					r.tracker.PacketTracker.LimitCount(1),
+					r.tracker.PacketTracker.EnsureOrder([]reflect.Type{}, []reflect.Type{reflect.TypeOf(cs_login.EncryptionResponse{})}),
+				}},
+				0x01: decode.PacketEntry{Decode: cs_login.EncryptionResponse{}.Read, Handle: []func(packet decode.Packet, context decode.PacketContext) (err error){
+					r.tracker.PacketTracker.LimitCount(1),
+					r.tracker.PacketTracker.EnsureOrder([]reflect.Type{}, []reflect.Type{reflect.TypeOf(cs_login.LoginStart{})}),
+				}},
 				0x02: decode.PacketEntry{Decode: cs_login.LoginPluginResponse{}.Read},
 			},
 			3: {
 				0x00: decode.PacketEntry{Decode: cs_play.ConfirmTeleportation{}.Read},
 				0x01: decode.PacketEntry{Decode: cs_play.QueryBlockEntityTag{}.Read},
-				0x02: decode.PacketEntry{Decode: cs_play.ChangeDifficulty{}.Read, Handle: []func(packet decode.Packet) (err error){
+				0x02: decode.PacketEntry{Decode: cs_play.ChangeDifficulty{}.Read, Handle: []func(packet decode.Packet, context decode.PacketContext) (err error){
 					r.printPacket,
 				}},
-				0x03: decode.PacketEntry{Decode: cs_play.MessageAck{}.Read, Handle: []func(packet decode.Packet) (err error){
+				0x03: decode.PacketEntry{Decode: cs_play.MessageAck{}.Read, Handle: []func(packet decode.Packet, context decode.PacketContext) (err error){
 					r.printPacket,
 				}},
 				0x04: decode.PacketEntry{Decode: cs_play.ChatCommand{}.Read},
 				0x05: decode.PacketEntry{Decode: cs_play.ChatMessage{}.Read},
-				0x06: decode.PacketEntry{Decode: cs_play.PlayerSession{}.Read, Handle: []func(packet decode.Packet) (err error){
+				0x06: decode.PacketEntry{Decode: cs_play.PlayerSession{}.Read, Handle: []func(packet decode.Packet, context decode.PacketContext) (err error){
 					r.printPacket,
 				}},
 				0x07: decode.PacketEntry{Decode: cs_play.ClientCommand{}.Read},
 				0x08: decode.PacketEntry{Decode: cs_play.ClientInformation{}.Read},
 				0x09: decode.PacketEntry{Decode: cs_play.CommandSuggestionsRequest{}.Read},
 				0x0a: decode.PacketEntry{Decode: cs_play.ClickContainerButton{}.Read},
-				0x0b: decode.PacketEntry{Decode: cs_play.ClickContainer{}.Read},
-				0x0c: decode.PacketEntry{Decode: cs_play.CloseContainer{}.Read},
+				0x0b: decode.PacketEntry{Decode: cs_play.ClickContainer{}.Read, Handle: []func(packet decode.Packet, context decode.PacketContext) (err error){
+					r.tracker.InventoryTracker.UpdateInventory,
+				}},
+				0x0c: decode.PacketEntry{Decode: cs_play.CloseContainer{}.Read, Handle: []func(packet decode.Packet, context decode.PacketContext) (err error){
+					r.tracker.InventoryTracker.UpdateInventory,
+				}},
 				0x0d: decode.PacketEntry{Decode: cs_play.PluginMessage{}.Read},
 				0x0e: decode.PacketEntry{Decode: cs_play.EditBook{}.Read},
 				0x0f: decode.PacketEntry{Decode: cs_play.QueryEntityTag{}.Read},
 				0x10: decode.PacketEntry{Decode: cs_play.Interact{}.Read},
 				0x11: decode.PacketEntry{Decode: cs_play.JigsawGenerate{}.Read},
 				0x12: decode.PacketEntry{Decode: cs_play.KeepAlive{}.Read},
-				0x13: decode.PacketEntry{Decode: cs_play.LockDifficulty{}.Read, Handle: []func(packet decode.Packet) (err error){
+				0x13: decode.PacketEntry{Decode: cs_play.LockDifficulty{}.Read, Handle: []func(packet decode.Packet, context decode.PacketContext) (err error){
 					r.printPacket,
 				}},
 				0x14: decode.PacketEntry{Decode: cs_play.SetPlayerPosition{}.Read},
@@ -91,13 +107,13 @@ func (r *Route) Start() {
 				0x1d: decode.PacketEntry{Decode: cs_play.PlayerAction{}.Read},
 				0x1e: decode.PacketEntry{Decode: cs_play.PlayerCommand{}.Read},
 				0x1f: decode.PacketEntry{Decode: cs_play.PlayerInput{}.Read},
-				0x20: decode.PacketEntry{Decode: cs_play.Pong{}.Read, Handle: []func(packet decode.Packet) (err error){
+				0x20: decode.PacketEntry{Decode: cs_play.Pong{}.Read, Handle: []func(packet decode.Packet, context decode.PacketContext) (err error){
 					r.printPacket,
 				}},
 				0x21: decode.PacketEntry{Decode: cs_play.ChangeRecipeBookSettings{}.Read},
 				0x22: decode.PacketEntry{Decode: cs_play.SetSeenRecipe{}.Read},
 				0x23: decode.PacketEntry{Decode: cs_play.RenameItem{}.Read},
-				0x24: decode.PacketEntry{Decode: cs_play.ResourcePack{}.Read, Handle: []func(packet decode.Packet) (err error){
+				0x24: decode.PacketEntry{Decode: cs_play.ResourcePack{}.Read, Handle: []func(packet decode.Packet, context decode.PacketContext) (err error){
 					r.printPacket,
 				}},
 				0x25: decode.PacketEntry{Decode: cs_play.SeenAdvancements{}.Read},
@@ -127,10 +143,10 @@ func (r *Route) Start() {
 			2: {
 				0x00: decode.PacketEntry{Decode: sc_login.Disconnect{}.Read},
 				0x01: decode.PacketEntry{Decode: sc_login.EncryptionRequest{}.Read},
-				0x02: decode.PacketEntry{Decode: sc_login.LoginSuccess{}.Read, Handle: []func(packet decode.Packet) (err error){
+				0x02: decode.PacketEntry{Decode: sc_login.LoginSuccess{}.Read, Handle: []func(packet decode.Packet, context decode.PacketContext) (err error){
 					r.handleLoginSuccess,
 				}},
-				0x03: decode.PacketEntry{Decode: sc_login.SetCompression(0).Read, Handle: []func(packet decode.Packet) (err error){
+				0x03: decode.PacketEntry{Decode: sc_login.SetCompression(0).Read, Handle: []func(packet decode.Packet, context decode.PacketContext) (err error){
 					r.handleSetCompression,
 				}},
 				0x04: decode.PacketEntry{Decode: sc_login.LoginPluginRequest{}.Read},
@@ -146,7 +162,7 @@ func (r *Route) Start() {
 				0x07: decode.PacketEntry{Decode: sc_play.SetBlockDestroyStage{}.Read},
 				0x08: decode.PacketEntry{Decode: sc_play.BlockEntityData{}.Read},
 				0x09: decode.PacketEntry{Decode: sc_play.BlockAction{}.Read},
-				0x0a: decode.PacketEntry{Decode: sc_play.BlockUpdate{}.Read, Handle: []func(packet decode.Packet) (err error){
+				0x0a: decode.PacketEntry{Decode: sc_play.BlockUpdate{}.Read, Handle: []func(packet decode.Packet, context decode.PacketContext) (err error){
 					r.tracker.WorldTracker.UpdateChunk,
 				}},
 				0x0b: decode.PacketEntry{Decode: sc_play.BossBar{}.Read},
@@ -155,41 +171,45 @@ func (r *Route) Start() {
 				0x0e: decode.PacketEntry{Decode: sc_play.ClearTitles{}.Read},
 				0x0f: decode.PacketEntry{Decode: sc_play.CommandSuggestionsResponse{}.Read},
 				0x10: decode.PacketEntry{Decode: sc_play.Commands{}.Read},
-				0x11: decode.PacketEntry{Decode: sc_play.CloseContainer{}.Read},
+				0x11: decode.PacketEntry{Decode: sc_play.CloseContainer{}.Read, Handle: []func(packet decode.Packet, context decode.PacketContext) (err error){
+					r.tracker.InventoryTracker.UpdateInventory,
+				}},
 				0x12: decode.PacketEntry{Decode: sc_play.SetContainerContent{}.Read},
 				0x13: decode.PacketEntry{Decode: sc_play.SetContainerProperty{}.Read},
 				0x14: decode.PacketEntry{Decode: sc_play.SetContainerSlot{}.Read},
 				0x15: decode.PacketEntry{Decode: sc_play.SetCooldown{}.Read},
-				0x16: decode.PacketEntry{Decode: sc_play.ChatSuggestions{}.Read, Handle: []func(packet decode.Packet) (err error){
+				0x16: decode.PacketEntry{Decode: sc_play.ChatSuggestions{}.Read, Handle: []func(packet decode.Packet, context decode.PacketContext) (err error){
 					r.printPacket,
 				}},
 				0x17: decode.PacketEntry{Decode: sc_play.PluginMessage{}.Read},
 				0x18: decode.PacketEntry{Decode: sc_play.DamageEvent{}.Read},
-				0x19: decode.PacketEntry{Decode: sc_play.DeleteMessage{}.Read, Handle: []func(packet decode.Packet) (err error){
+				0x19: decode.PacketEntry{Decode: sc_play.DeleteMessage{}.Read, Handle: []func(packet decode.Packet, context decode.PacketContext) (err error){
 					r.printPacket,
 				}},
 				0x1a: decode.PacketEntry{Decode: sc_play.Disconnect{}.Read},
 				0x1b: decode.PacketEntry{Decode: sc_play.DisguisedChatMessage{}.Read},
 				0x1c: decode.PacketEntry{Decode: sc_play.EntityEvent{}.Read},
-				0x1d: decode.PacketEntry{Decode: sc_play.Explosion{}.Read, Handle: []func(packet decode.Packet) (err error){
+				0x1d: decode.PacketEntry{Decode: sc_play.Explosion{}.Read, Handle: []func(packet decode.Packet, context decode.PacketContext) (err error){
 					r.tracker.WorldTracker.UpdateChunk,
 				}},
-				0x1e: decode.PacketEntry{Decode: sc_play.UnloadChunk{}.Read, Handle: []func(packet decode.Packet) (err error){
+				0x1e: decode.PacketEntry{Decode: sc_play.UnloadChunk{}.Read, Handle: []func(packet decode.Packet, context decode.PacketContext) (err error){
 					r.tracker.WorldTracker.UpdateChunk,
 				}},
 				0x1f: decode.PacketEntry{Decode: sc_play.GameEvent{}.Read},
-				0x20: decode.PacketEntry{Decode: sc_play.OpenHorseScreen{}.Read},
+				0x20: decode.PacketEntry{Decode: sc_play.OpenHorseScreen{}.Read, Handle: []func(packet decode.Packet, context decode.PacketContext) (err error){
+					r.tracker.InventoryTracker.UpdateInventory,
+				}},
 				0x21: decode.PacketEntry{Decode: sc_play.HurtAnimation{}.Read},
 				0x22: decode.PacketEntry{Decode: sc_play.InitializeWorldBorder{}.Read},
 				0x23: decode.PacketEntry{Decode: sc_play.KeepAlive{}.Read},
-				0x24: decode.PacketEntry{Decode: sc_play.ChunkData{}.Read, Handle: []func(packet decode.Packet) (err error){
+				0x24: decode.PacketEntry{Decode: sc_play.ChunkData{}.Read, Handle: []func(packet decode.Packet, context decode.PacketContext) (err error){
 					r.tracker.WorldTracker.UpdateChunk,
 				}},
 				0x25: decode.PacketEntry{Decode: sc_play.WorldEvent{}.Read},
 				0x26: decode.PacketEntry{Decode: sc_play.Particle{}.Read},
 				0x27: decode.PacketEntry{Decode: sc_play.UpdateLight{}.Read},
-				0x28: decode.PacketEntry{Decode: sc_play.Login{}.Read, Handle: []func(packet decode.Packet) (err error){
-					func(packet decode.Packet) (err error) {
+				0x28: decode.PacketEntry{Decode: sc_play.Login{}.Read, Handle: []func(packet decode.Packet, context decode.PacketContext) (err error){
+					func(packet decode.Packet, _ decode.PacketContext) (err error) {
 						return r.tracker.OnLogin(packet.(sc_play.Login))
 					},
 				}},
@@ -200,9 +220,11 @@ func (r *Route) Start() {
 				0x2d: decode.PacketEntry{Decode: sc_play.UpdateEntityRotation{}.Read},
 				0x2e: decode.PacketEntry{Decode: sc_play.MoveVehicle{}.Read},
 				0x2f: decode.PacketEntry{Decode: sc_play.OpenBook{}.Read},
-				0x30: decode.PacketEntry{Decode: sc_play.OpenScreen{}.Read},
+				0x30: decode.PacketEntry{Decode: sc_play.OpenScreen{}.Read, Handle: []func(packet decode.Packet, context decode.PacketContext) (err error){
+					r.tracker.InventoryTracker.UpdateInventory,
+				}},
 				0x31: decode.PacketEntry{Decode: sc_play.OpenSignEditor{}.Read},
-				0x32: decode.PacketEntry{Decode: sc_play.Ping{}.Read, Handle: []func(packet decode.Packet) (err error){
+				0x32: decode.PacketEntry{Decode: sc_play.Ping{}.Read, Handle: []func(packet decode.Packet, context decode.PacketContext) (err error){
 					r.printPacket,
 				}},
 				0x33: decode.PacketEntry{Decode: sc_play.PlaceGhostRecipe{}.Read},
@@ -218,14 +240,14 @@ func (r *Route) Start() {
 				0x3d: decode.PacketEntry{Decode: sc_play.UpdateRecipeBook{}.Read},
 				0x3e: decode.PacketEntry{Decode: sc_play.RemoveEntities{}.Read},
 				0x3f: decode.PacketEntry{Decode: sc_play.RemoveEntityEffect{}.Read},
-				0x40: decode.PacketEntry{Decode: sc_play.ResourcePack{}.Read, Handle: []func(packet decode.Packet) (err error){
+				0x40: decode.PacketEntry{Decode: sc_play.ResourcePack{}.Read, Handle: []func(packet decode.Packet, context decode.PacketContext) (err error){
 					r.printPacket,
 				}},
-				0x41: decode.PacketEntry{Decode: sc_play.Respawn{}.Read, Handle: []func(packet decode.Packet) (err error){
+				0x41: decode.PacketEntry{Decode: sc_play.Respawn{}.Read, Handle: []func(packet decode.Packet, context decode.PacketContext) (err error){
 					r.tracker.OnRespawn,
 				}},
 				0x42: decode.PacketEntry{Decode: sc_play.SetHeadRotation{}.Read},
-				0x43: decode.PacketEntry{Decode: sc_play.UpdateSectionBlocks{}.Read, Handle: []func(packet decode.Packet) (err error){
+				0x43: decode.PacketEntry{Decode: sc_play.UpdateSectionBlocks{}.Read, Handle: []func(packet decode.Packet, context decode.PacketContext) (err error){
 					r.tracker.WorldTracker.UpdateChunk,
 				}},
 				0x44: decode.PacketEntry{Decode: sc_play.SelectAdvancementsTab{}.Read},
@@ -289,6 +311,7 @@ func (r *Route) handleFBTraffic() {
 			r.errCh <- fmt.Errorf("client->server set write deadline: %w", err)
 			return
 		}
+		region := trace.StartRegion(context.Background(), "FB read")
 		raw, err := reader.ReadPacket()
 		if err != nil {
 			r.errCh <- fmt.Errorf("client->server read: %w", err)
@@ -298,7 +321,21 @@ func (r *Route) handleFBTraffic() {
 			r.errCh <- fmt.Errorf("client->server write: %w", err)
 			return
 		}
-		if err = r.cReg.HandleNewPacket(r.state, reader); err != nil {
+		region.End()
+		region = trace.StartRegion(context.Background(), "FB handle")
+		packet, packetContext, err := r.cReg.ReadNewPacket(decode.ServerBound, r.state, reader)
+		if err != nil {
+			if errors.Is(err, error2.ErrSoft) && errors.Is(err, error2.ErrUnknownPacket) {
+				continue
+			}
+			if errors.Is(err, error2.ErrSoft) {
+				logrus.Errorf("client->server decode: %v", err)
+			} else {
+				r.errCh <- fmt.Errorf("client->server decode: %w", err)
+			}
+		}
+		r.tracker.PacketTracker.UpdateCount(packetContext, packet)
+		if err = r.cReg.HandlePacket(packet, packetContext); err != nil {
 			if errors.Is(err, error2.ErrSoft) && errors.Is(err, error2.ErrUnknownPacket) {
 				continue
 			}
@@ -308,6 +345,7 @@ func (r *Route) handleFBTraffic() {
 				r.errCh <- fmt.Errorf("client->server handle: %w", err)
 			}
 		}
+		region.End()
 		reader.HasComp = r.compress
 	}
 }
@@ -323,6 +361,7 @@ func (r *Route) handleBFTraffic() {
 			r.errCh <- fmt.Errorf("server->client set write deadline: %w", err)
 			return
 		}
+		region := trace.StartRegion(context.Background(), "BF read")
 		raw, err := reader.ReadPacket()
 		if err != nil {
 			r.errCh <- fmt.Errorf("server->client read: %w", err)
@@ -332,7 +371,21 @@ func (r *Route) handleBFTraffic() {
 			r.errCh <- fmt.Errorf("server->client write: %w", err)
 			return
 		}
-		if err = r.sReg.HandleNewPacket(r.state, reader); err != nil {
+		region.End()
+		region = trace.StartRegion(context.Background(), "BF handle")
+		packet, packetContext, err := r.sReg.ReadNewPacket(decode.ClientBound, r.state, reader)
+		if err != nil {
+			if errors.Is(err, error2.ErrSoft) && errors.Is(err, error2.ErrUnknownPacket) {
+				continue
+			}
+			if errors.Is(err, error2.ErrSoft) {
+				logrus.Errorf("server->client decode: %v", err)
+			} else {
+				r.errCh <- fmt.Errorf("server->client decode: %w", err)
+			}
+		}
+		r.tracker.PacketTracker.UpdateCount(packetContext, packet)
+		if err = r.sReg.HandlePacket(packet, packetContext); err != nil {
 			if errors.Is(err, error2.ErrSoft) && errors.Is(err, error2.ErrUnknownPacket) {
 				continue
 			}
@@ -342,6 +395,7 @@ func (r *Route) handleBFTraffic() {
 				r.errCh <- fmt.Errorf("server->client handle: %w", err)
 			}
 		}
+		region.End()
 		reader.HasComp = r.compress
 		reader.Context.WorldHeight = r.tracker.WorldTracker.DimensionType.Height / 16
 	}

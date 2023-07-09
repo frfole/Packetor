@@ -51,3 +51,13 @@ func (reg *WindowRegistry) GetByRegistryID(registryId int32) *Window {
 	}
 	return &reg.base[registryId]
 }
+
+// GetName returns the registry name of the window
+func (receiver Window) GetName() string {
+	return receiver.name
+}
+
+// GetSize return the slot count excluding player slots
+func (receiver Window) GetSize() int32 {
+	return receiver.size
+}

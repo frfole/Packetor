@@ -1,6 +1,9 @@
 package sc_play
 
-import "Packetor/packetor/decode"
+import (
+	"Packetor/packetor/decode"
+	"fmt"
+)
 
 type OpenHorseScreen struct {
 	WindowID  uint8
@@ -29,5 +32,8 @@ func (p OpenHorseScreen) Read(reader decode.PacketReader) (packet decode.Packet,
 }
 
 func (p OpenHorseScreen) IsValid() (reason error) {
+	if p.SlotCount < 0 {
+		return fmt.Errorf("slot count must be atleast 0 was %v", p.SlotCount)
+	}
 	return nil
 }

@@ -8,8 +8,10 @@ import (
 )
 
 type Tracker struct {
-	ServerInfo   ServerInfo
-	WorldTracker WorldTracker
+	ServerInfo       ServerInfo
+	WorldTracker     WorldTracker
+	InventoryTracker InventoryTracker
+	PacketTracker    PacketTracker
 }
 
 func NewTracker() Tracker {
@@ -22,6 +24,15 @@ func NewTracker() Tracker {
 			DimensionType: DimensionTypeDefault,
 			Chunks:        map[uint64]Chunk{},
 		},
+		InventoryTracker: InventoryTracker{
+			HasOpenInventory:   false,
+			WindowID:           -1,
+			IsSecondaryOpen:    false,
+			IsSecondaryHorse:   false,
+			SecondaryWindow:    nil,
+			SecondarySlotCount: 0,
+		},
+		PacketTracker: newPacketTracker(),
 	}
 }
 
@@ -44,7 +55,7 @@ func (receiver *Tracker) OnLogin(packet sc_play.Login) error {
 	return nil
 }
 
-func (receiver *Tracker) OnRespawn(basePacket decode.Packet) error {
+func (receiver *Tracker) OnRespawn(basePacket decode.Packet, _ decode.PacketContext) error {
 	packet, ok := basePacket.(sc_play.Respawn)
 	if !ok {
 		return nil

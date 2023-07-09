@@ -424,6 +424,9 @@ func (r *PacketReader) ReadUuid() (value uuid.UUID, err error) {
 }
 
 func (r *PacketReader) ReadBytesExact(length int) (value []byte, err error) {
+	if length < 0 {
+		return nil, errors.Join(fmt.Errorf("lenght must be atleast 0 was %d", length), error2.ErrDecodeLength)
+	}
 	data := make([]byte, length)
 	n, err := r.rd.Read(data)
 	if err != nil {
@@ -436,6 +439,9 @@ func (r *PacketReader) ReadBytesExact(length int) (value []byte, err error) {
 }
 
 func (r *PacketReader) ReadBytes(maxLen int) (value []byte, err error) {
+	if maxLen < 0 {
+		return nil, errors.Join(fmt.Errorf("max lenght must be atleast 0 was %d", maxLen), error2.ErrDecodeLength)
+	}
 	data := make([]byte, maxLen)
 	n, err := r.rd.Read(data)
 	if err != nil {

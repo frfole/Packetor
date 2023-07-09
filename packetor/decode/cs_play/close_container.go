@@ -3,11 +3,11 @@ package cs_play
 import "Packetor/packetor/decode"
 
 type CloseContainer struct {
-	WindowID int8
+	WindowID uint8
 }
 
 func (p CloseContainer) Read(reader decode.PacketReader) (packet decode.Packet, err error) {
-	wid, err := reader.ReadSByte()
+	wid, err := reader.ReadUByte()
 	if err != nil {
 		return nil, err
 	}

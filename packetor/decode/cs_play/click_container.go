@@ -8,17 +8,17 @@ import (
 )
 
 type ClickContainer struct {
-	WindowId    int8
+	WindowID    uint8
 	StateID     int32
 	Slot        int16
-	Button      int8
+	Button      uint8
 	Mode        int32
 	Items       map[int16]decode.Slot
 	CarriedItem decode.Slot
 }
 
 func (p ClickContainer) Read(reader decode.PacketReader) (packet decode.Packet, err error) {
-	wid, err := reader.ReadSByte()
+	wid, err := reader.ReadUByte()
 	if err != nil {
 		return nil, err
 	}
@@ -30,7 +30,7 @@ func (p ClickContainer) Read(reader decode.PacketReader) (packet decode.Packet, 
 	if err != nil {
 		return nil, err
 	}
-	button, err := reader.ReadSByte()
+	button, err := reader.ReadUByte()
 	if err != nil {
 		return nil, err
 	}
@@ -60,7 +60,7 @@ func (p ClickContainer) Read(reader decode.PacketReader) (packet decode.Packet, 
 		return nil, err
 	}
 	return ClickContainer{
-		WindowId:    wid,
+		WindowID:    wid,
 		StateID:     sid,
 		Slot:        slot,
 		Button:      button,

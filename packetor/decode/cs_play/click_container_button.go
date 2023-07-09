@@ -3,16 +3,16 @@ package cs_play
 import "Packetor/packetor/decode"
 
 type ClickContainerButton struct {
-	WindowID int8
-	ButtonID int8
+	WindowID uint8
+	ButtonID uint8
 }
 
 func (p ClickContainerButton) Read(reader decode.PacketReader) (packet decode.Packet, err error) {
-	wid, err := reader.ReadSByte()
+	wid, err := reader.ReadUByte()
 	if err != nil {
 		return nil, err
 	}
-	bid, err := reader.ReadSByte()
+	bid, err := reader.ReadUByte()
 	if err != nil {
 		return nil, err
 	}

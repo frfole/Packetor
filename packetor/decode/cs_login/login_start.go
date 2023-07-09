@@ -39,5 +39,10 @@ func (p LoginStart) IsValid() (reason error) {
 	if len(p.Username) < 1 {
 		return fmt.Errorf("username length must be in (0; 16> was %d", len(p.Username))
 	}
+	for i, userChar := range p.Username {
+		if !(userChar == '_' || ('0' <= userChar || userChar <= '9') || ('A' <= userChar || userChar <= 'Z') || ('a' <= userChar || userChar <= 'z')) {
+			return fmt.Errorf("username contains illegal character at index %d", i)
+		}
+	}
 	return nil
 }
